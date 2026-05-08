@@ -68,6 +68,49 @@ const demoSeries = [
   }
 ];
 
+const recommendedSeries = [
+  {
+    id: "rec-1",
+    title: "Severance",
+    genre: "Sci-Fi",
+    rating: 5,
+    poster: "🏢",
+    note: "Mind-bending mystery"
+  },
+  {
+    id: "rec-2",
+    title: "The Last of Us",
+    genre: "Drama",
+    rating: 5,
+    poster: "🌿",
+    note: "Emotional survival story"
+  },
+  {
+    id: "rec-3",
+    title: "Sherlock",
+    genre: "Thriller",
+    rating: 4,
+    poster: "🔎",
+    note: "Smart detective series"
+  },
+  {
+    id: "rec-4",
+    title: "House of the Dragon",
+    genre: "Fantasy",
+    rating: 4,
+    poster: "🐉",
+    note: "Epic fantasy drama"
+  },
+  {
+    id: "rec-5",
+    title: "Stranger Things",
+    genre: "Sci-Fi",
+    rating: 4,
+    poster: "🚲",
+    note: "Retro supernatural adventure"
+  }
+];
+
 const statuses = ["Watching", "Completed", "Plan to Watch", "Dropped"];
 
 const genres = [
@@ -187,6 +230,26 @@ export default function App() {
 
   function deleteSeries(id) {
     setSeries((current) => current.filter((item) => item.id !== id));
+  }
+
+  function scrollRecommendations(direction) {
+    const container = document.querySelector(".recommendations-scroll");
+
+    if (!container) {
+      return;
+    }
+
+    const scrollAmount = direction === "left" ? -240 : 240;
+
+    container.scrollBy({
+      left: scrollAmount,
+      behavior: "smooth"
+    });
+  }
+
+  function handleRecommendationWheel(event) {
+    event.preventDefault();
+    event.currentTarget.scrollLeft += event.deltaY;
   }
 
   function toggleFavorite(id) {
@@ -405,13 +468,54 @@ export default function App() {
             </p>
           </div>
 
-          <div className="hero-panel">
-            <div className="poster-stack">
-              <span>🕰️</span>
-              <span>⚡</span>
-              <span>🖤</span>
+          <div className="hero-panel recommendations-panel">
+            <div className="recommendations-header">
+              <div>
+                <p className="eyebrow">Popular Now</p>
+                <h3>Recommended Series</h3>
+              </div>
+
+              <div className="recommendation-arrows">
+                <button
+                  type="button"
+                  onClick={() => scrollRecommendations("left")}
+                  aria-label="Scroll recommendations left"
+                >
+                  ←
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => scrollRecommendations("right")}
+                  aria-label="Scroll recommendations right"
+                >
+                  →
+                </button>
+              </div>
             </div>
-            <p>Build your personal series archive.</p>
+
+            <div
+              className="recommendations-scroll"
+              onWheel={handleRecommendationWheel}
+            >
+              {recommendedSeries.map((item) => (
+                <div className="recommendation-card" key={item.id}>
+                  <div className="recommendation-poster">{item.poster}</div>
+
+                  <div className="recommendation-info">
+                    <h4>{item.title}</h4>
+                    <p>{item.note}</p>
+
+                    <div className="recommendation-meta">
+                      <span>{item.genre}</span>
+                      <span>{"★".repeat(item.rating)}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <p className="recommendations-note">Sample series</p>
           </div>
         </section>
         <section className="stats-grid" aria-label="Series statistics">
