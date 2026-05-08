@@ -10,7 +10,7 @@ const demoSeries = [
   {
     id: crypto.randomUUID(),
     title: "Dark",
-    genre: "Sci-Fi",
+    genres: ["Sci-Fi", "Thriller"],
     status: "Completed",
     rating: 5,
     seasons: 3,
@@ -27,7 +27,7 @@ const demoSeries = [
   {
     id: crypto.randomUUID(),
     title: "The Bear",
-    genre: "Drama",
+    genres: ["Drama", "Comedy"],
     status: "Watching",
     rating: 4,
     seasons: 3,
@@ -40,7 +40,7 @@ const demoSeries = [
   {
     id: crypto.randomUUID(),
     title: "Arcane",
-    genre: "Animation",
+    genres: ["Animation", "Fantasy"],
     status: "Plan to Watch",
     rating: 5,
     seasons: 1,
@@ -56,7 +56,7 @@ const demoSeries = [
   {
     id: crypto.randomUUID(),
     title: "Wednesday",
-    genre: "Fantasy",
+    genres: ["Fantasy", "Comedy"],
     status: "Watching",
     rating: 4,
     seasons: 1,
@@ -126,7 +126,7 @@ const genres = [
 
 const emptyForm = {
   title: "",
-  genre: "Drama",
+  genres: ["Drama"],
   status: "Plan to Watch",
   rating: 3,
   seasons: 1,
@@ -162,6 +162,11 @@ export default function App() {
 
       return parsed.map((item) => ({
         ...item,
+        genres: Array.isArray(item.genres)
+          ? item.genres
+          : item.genre
+            ? [item.genre]
+            : ["Drama"],
         episodes: Array.isArray(item.episodes) ? item.episodes : []
       }));
     }
@@ -287,6 +292,19 @@ export default function App() {
     }));
   }
 
+  function toggleFormGenre(genre) {
+    setForm((current) => {
+      const alreadySelected = current.genres.includes(genre);
+
+      return {
+        ...current,
+        genres: alreadySelected
+          ? current.genres.filter((item) => item !== genre)
+          : [...current.genres, genre]
+      };
+    });
+  }
+
   const filteredSeries = useMemo(() => {
     return series.filter((item) => {
       const matchesSearch = item.title
@@ -296,7 +314,14 @@ export default function App() {
       const matchesStatus =
         filters.status === "All" || item.status === filters.status;
 
-      const matchesGenre = filters.genre === "All" || item.genre === filters.genre;
+      const itemGenres = Array.isArray(item.genres)
+        ? item.genres
+        : item.genre
+          ? [item.genre]
+          : [];
+
+      const matchesGenre =
+        filters.genre === "All" || itemGenres.includes(filters.genre);
 
       return matchesSearch && matchesStatus && matchesGenre;
     });
@@ -422,10 +447,15 @@ export default function App() {
       return;
     }
 
+    if (!Array.isArray(form.genres) || form.genres.length === 0) {
+      alert("Please select at least one genre.");
+      return;
+    }
+
     const newSeries = {
       id: crypto.randomUUID(),
       title: form.title.trim(),
-      genre: form.genre,
+      genres: form.genres,
       status: form.status,
       rating: Number(form.rating),
       seasons: Number(form.seasons),
@@ -696,7 +726,9 @@ export default function App() {
                           </div>
 
                           <div className="meta-row">
-                            <span>{item.genre}</span>
+                            {(item.genres || []).map((genre) => (
+                              <span key={genre}>{genre}</span>
+                            ))}
                             <span>{item.status}</span>
                             <span>{item.seasons} seasons</span>
                             <span>{item.episodes?.length || 0} episodes</span>
@@ -908,17 +940,26 @@ export default function App() {
                     />
                   </label>
 
-                  <label>
-                    Genre
-                    <select
-                      value={form.genre}
-                      onChange={(event) => updateForm("genre", event.target.value)}
-                    >
+                  <div className="genre-picker">
+                    <span>Genres</span>
+
+                    <div className="genre-chip-grid">
                       {genres.map((genre) => (
-                        <option key={genre}>{genre}</option>
+                        <button
+                          key={genre}
+                          type="button"
+                          className={
+                            form.genres.includes(genre)
+                              ? "genre-chip active"
+                              : "genre-chip"
+                          }
+                          onClick={() => toggleFormGenre(genre)}
+                        >
+                          {genre}
+                        </button>
                       ))}
-                    </select>
-                  </label>
+                    </div>
+                  </div>
 
                   <label>
                     Status
