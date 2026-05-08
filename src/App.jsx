@@ -3,7 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 const STORAGE_KEYS = {
   series: "lazygarfield_series",
   theme: "lazygarfield_theme",
-  filters: "lazygarfield_filters"
+  filters: "lazygarfield_filters",
+  page: "lazygarfield_page"
 };
 
 const demoSeries = [
@@ -192,7 +193,9 @@ export default function App() {
     return localStorage.getItem(STORAGE_KEYS.theme) || "dark";
   });
 
-  const [activePage, setActivePage] = useState("dashboard");
+  const [activePage, setActivePage] = useState(() => {
+    return localStorage.getItem(STORAGE_KEYS.page) || "dashboard";
+  });
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.series, JSON.stringify(series));
@@ -201,6 +204,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.filters, JSON.stringify(filters));
   }, [filters]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.page, activePage);
+  }, [activePage]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.theme, theme);
