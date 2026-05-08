@@ -105,6 +105,19 @@ export default function App() {
     );
   }
 
+  function changeRating(id, rating) {
+    setSeries((current) =>
+      current.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              rating: Number(rating)
+            }
+          : item
+      )
+    );
+  }
+
   const filteredSeries = useMemo(() => {
     return series.filter((item) => {
       const matchesSearch = item.title
@@ -276,9 +289,25 @@ export default function App() {
                     <span>{item.seasons} seasons</span>
                   </div>
 
-                  <div className="stars">
-                    {"★".repeat(item.rating)}
-                    {"☆".repeat(5 - item.rating)}
+                  <div className="rating-row">
+                    <label>
+                      Series rating
+                      <select
+                        value={item.rating}
+                        onChange={(event) => changeRating(item.id, event.target.value)}
+                      >
+                        {[1, 2, 3, 4, 5].map((rating) => (
+                          <option key={rating} value={rating}>
+                            {rating}/5
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <div className="stars">
+                      {"★".repeat(item.rating)}
+                      {"☆".repeat(5 - item.rating)}
+                    </div>
                   </div>
 
                   <button
