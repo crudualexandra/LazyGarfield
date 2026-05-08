@@ -184,6 +184,48 @@ h1 {
   margin-bottom: 24px;
 }
 
+.form-section {
+  background: linear-gradient(145deg, var(--card), rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--border);
+  border-radius: 32px;
+  box-shadow: var(--shadow);
+  padding: 26px;
+  margin-bottom: 24px;
+}
+
+.series-form {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  align-items: end;
+  margin-top: 18px;
+}
+
+.full-field {
+  grid-column: 1 / -1;
+}
+
+textarea {
+  resize: vertical;
+}
+
+.submit-button {
+  grid-column: 1 / -1;
+  justify-content: center;
+  font-size: 1rem;
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 18px;
+  font-weight: 800;
+  color: #1b1000;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  transition: transform 0.2s ease;
+}
+
+.submit-button:hover {
+  transform: translateY(-2px) scale(1.01);
+}
+
 .filters-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr)) auto;

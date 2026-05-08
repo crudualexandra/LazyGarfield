@@ -64,6 +64,16 @@ const genres = [
   "Documentary"
 ];
 
+const emptyForm = {
+  title: "",
+  genre: "Drama",
+  status: "Plan to Watch",
+  rating: 3,
+  seasons: 1,
+  description: "",
+  poster: "🎬"
+};
+
 export default function App() {
   const [series, setSeries] = useState(demoSeries);
   const [filters, setFilters] = useState({
@@ -71,6 +81,7 @@ export default function App() {
     status: "All",
     genre: "All"
   });
+  const [form, setForm] = useState(emptyForm);
   const stats = useMemo(() => {
     const total = series.length;
     const favorites = series.filter((item) => item.isFavorite).length;
@@ -118,6 +129,13 @@ export default function App() {
     );
   }
 
+  function updateForm(field, value) {
+    setForm((current) => ({
+      ...current,
+      [field]: value
+    }));
+  }
+
   const filteredSeries = useMemo(() => {
     return series.filter((item) => {
       const matchesSearch = item.title
@@ -139,6 +157,31 @@ export default function App() {
       status: "All",
       genre: "All"
     });
+  }
+
+  function addSeries(event) {
+    event.preventDefault();
+
+    if (!form.title.trim()) {
+      alert("Please enter a series title.");
+      return;
+    }
+
+    const newSeries = {
+      id: crypto.randomUUID(),
+      title: form.title.trim(),
+      genre: form.genre,
+      status: form.status,
+      rating: Number(form.rating),
+      seasons: Number(form.seasons),
+      description: form.description.trim() || "No description added yet.",
+      poster: form.poster.trim() || "🎬",
+      isFavorite: false,
+      createdAt: new Date().toISOString()
+    };
+
+    setSeries((current) => [newSeries, ...current]);
+    setForm(emptyForm);
   }
 
   return (
@@ -321,6 +364,97 @@ export default function App() {
               </article>
             ))}
           </div>
+        </section>
+
+        <section id="add-series" className="form-section">
+          <div className="section-title">
+            <p className="eyebrow">Add new series</p>
+            <h2>Expand your LazyGarfield</h2>
+          </div>
+
+          <form className="series-form" onSubmit={addSeries}>
+            <label>
+              Title
+              <input
+                type="text"
+                placeholder="Example: Stranger Things"
+                value={form.title}
+                onChange={(event) => updateForm("title", event.target.value)}
+              />
+            </label>
+
+            <label>
+              Poster emoji/icon
+              <input
+                type="text"
+                maxLength="4"
+                value={form.poster}
+                onChange={(event) => updateForm("poster", event.target.value)}
+              />
+            </label>
+
+            <label>
+              Genre
+              <select
+                value={form.genre}
+                onChange={(event) => updateForm("genre", event.target.value)}
+              >
+                {genres.map((genre) => (
+                  <option key={genre}>{genre}</option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Status
+              <select
+                value={form.status}
+                onChange={(event) => updateForm("status", event.target.value)}
+              >
+                {statuses.map((status) => (
+                  <option key={status}>{status}</option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Rating
+              <select
+                value={form.rating}
+                onChange={(event) => updateForm("rating", event.target.value)}
+              >
+                {[1, 2, 3, 4, 5].map((rating) => (
+                  <option key={rating} value={rating}>
+                    {rating}/5
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Seasons
+              <input
+                type="number"
+                min="1"
+                value={form.seasons}
+                onChange={(event) => updateForm("seasons", event.target.value)}
+              />
+            </label>
+
+            <label className="full-field">
+              Description
+              <textarea
+                rows="4"
+                placeholder="Short description..."
+                value={form.description}
+                onChange={(event) => updateForm("description", event.target.value)}
+              />
+            </label>
+
+            <button className="submit-button" type="submit">
+              Add Series
+            </button>
+          </form>
         </section>
       </main>
     </div>
