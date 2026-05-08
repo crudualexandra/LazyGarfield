@@ -463,8 +463,10 @@ export default function App() {
             <span className="hero-badge">TV Series Personal Journal</span>
             <h2>Your cinematic watchlist, organized in one place.</h2>
             <p>
-              LazyGarfield is an app where users can
-              manage series directly in the browser.
+              LazyGarfield is a client-side only React app where users can manage
+              series, filter by status or genre, rate shows, mark favorites, rate
+              individual episodes, and keep everything saved locally in the
+              browser.
             </p>
           </div>
 
@@ -893,6 +895,11 @@ export default function App() {
           </form>
         </section>
       </main>
+
+      <footer className="footer">
+        <p>LazyGarfield —  web application.</p>
+       
+      </footer>
     </div>
   );
 }

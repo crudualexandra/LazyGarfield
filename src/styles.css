@@ -917,3 +917,13 @@ textarea:focus {
     height: 130px;
   }
 }
+
+.footer {
+  padding: 24px 0 6px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.footer p {
+  margin-bottom: 6px;
+}
