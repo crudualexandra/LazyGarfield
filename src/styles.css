@@ -68,6 +68,37 @@ button {
   padding: 18px 0 30px;
 }
 
+.main-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-button {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: var(--card);
+  color: var(--muted);
+  font-weight: 900;
+  transition: transform 0.2s ease, border 0.2s ease, background 0.2s ease,
+    color 0.2s ease;
+}
+
+.nav-button:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.nav-button.active {
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: #1b1000;
+  border-color: transparent;
+}
+
 .theme-toggle {
   border: 1px solid var(--border);
   border-radius: 999px;

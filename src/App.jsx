@@ -187,6 +187,8 @@ export default function App() {
     return localStorage.getItem(STORAGE_KEYS.theme) || "dark";
   });
 
+  const [activePage, setActivePage] = useState("dashboard");
+
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.series, JSON.stringify(series));
   }, [series]);
@@ -448,6 +450,38 @@ export default function App() {
             Track what you watch, love, finish, drop, and plan to start next.
           </p>
         </div>
+
+        <nav className="main-nav" aria-label="Main navigation">
+          <button
+            className={
+              activePage === "dashboard" ? "nav-button active" : "nav-button"
+            }
+            onClick={() => setActivePage("dashboard")}
+          >
+            Dashboard
+          </button>
+
+          <button
+            className={activePage === "library" ? "nav-button active" : "nav-button"}
+            onClick={() => setActivePage("library")}
+          >
+            Library
+          </button>
+
+          <button
+            className={activePage === "add" ? "nav-button active" : "nav-button"}
+            onClick={() => setActivePage("add")}
+          >
+            Add Series
+          </button>
+
+          <button
+            className={activePage === "insights" ? "nav-button active" : "nav-button"}
+            onClick={() => setActivePage("insights")}
+          >
+            Insights
+          </button>
+        </nav>
 
         <button
           className="theme-toggle"
