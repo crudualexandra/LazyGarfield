@@ -664,12 +664,173 @@ textarea:focus {
 .series-card {
   display: grid;
   grid-template-columns: 110px minmax(0, 1fr);
+  align-items: start;
   gap: 18px;
   padding: 18px;
   border-radius: 28px;
   background: var(--card-solid);
   border: 1px solid var(--border);
   transition: transform 0.2s ease, border 0.2s ease;
+}
+
+.compact-rating {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0 14px;
+}
+
+.compact-rating span {
+  color: var(--accent);
+  letter-spacing: 2px;
+  font-size: 1.05rem;
+}
+
+.compact-rating strong {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.details-toggle-button {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 11px 16px;
+  background: var(--card);
+  color: var(--text);
+  font-weight: 900;
+  transition: transform 0.2s ease, border 0.2s ease, background 0.2s ease;
+}
+
+.details-toggle-button:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+  background: rgba(255, 181, 71, 0.12);
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.68);
+  backdrop-filter: blur(8px);
+  animation: overlayFadeIn 0.22s ease both;
+}
+
+.series-modal {
+  width: min(920px, 100%);
+  max-height: min(86vh, 900px);
+  overflow-y: auto;
+  background:
+    radial-gradient(
+      circle at top left,
+      rgba(255, 181, 71, 0.16),
+      transparent 35%
+    ),
+    var(--card-solid);
+  border: 1px solid var(--border);
+  border-radius: 32px;
+  box-shadow: 0 30px 120px rgba(0, 0, 0, 0.55);
+  padding: 26px;
+  animation: modalPopIn 0.24s ease both;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.modal-title-row {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+}
+
+.modal-title-row h2 {
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  line-height: 1;
+  margin-bottom: 10px;
+}
+
+.modal-title-row p {
+  color: var(--muted);
+  line-height: 1.6;
+  margin-bottom: 0;
+}
+
+.modal-poster {
+  min-height: 150px;
+  display: grid;
+  place-items: center;
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at top, rgba(255, 181, 71, 0.25), transparent),
+    var(--bg);
+  border: 1px solid var(--border);
+  font-size: 4rem;
+}
+
+.modal-close-button {
+  width: 46px;
+  height: 46px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--card);
+  color: var(--text);
+  font-size: 1.8rem;
+  font-weight: 900;
+  display: grid;
+  place-items: center;
+  transition: transform 0.2s ease, border 0.2s ease, background 0.2s ease;
+}
+
+.modal-close-button:hover {
+  transform: rotate(8deg) scale(1.05);
+  border-color: var(--accent);
+  background: rgba(255, 181, 71, 0.14);
+}
+
+.series-modal .favorite-button {
+  width: auto;
+  height: auto;
+  padding: 10px 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.modal-episodes-box {
+  margin-top: 18px;
+}
+
+@keyframes overlayFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalPopIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .series-card:hover {
@@ -775,8 +936,8 @@ textarea:focus {
 
 .episode-form {
   display: grid;
-  grid-template-columns: 1.4fr 70px 70px 95px auto;
-  gap: 8px;
+  grid-template-columns: minmax(180px, 1.4fr) 90px 90px 120px;
+  gap: 10px;
   margin-bottom: 12px;
 }
 
@@ -787,9 +948,10 @@ textarea:focus {
 }
 
 .add-episode-button {
+  grid-column: 1 / -1;
   border: 0;
   border-radius: 12px;
-  padding: 10px 14px;
+  padding: 12px 14px;
   background: linear-gradient(135deg, var(--accent), var(--accent-strong));
   color: #1b1000;
   font-weight: 900;
@@ -1192,6 +1354,20 @@ textarea:focus {
 }
 
 @media (max-width: 720px) {
+  .series-modal {
+    max-height: 90vh;
+    padding: 20px;
+    border-radius: 24px;
+  }
+
+  .modal-title-row {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-poster {
+    min-height: 120px;
+  }
+
   .episode-form {
     grid-template-columns: 1fr 1fr;
   }
@@ -1211,6 +1387,18 @@ textarea:focus {
 }
 
 @media (max-width: 560px) {
+  .modal-overlay {
+    padding: 12px;
+  }
+
+  .modal-header {
+    flex-direction: column;
+  }
+
+  .modal-close-button {
+    align-self: flex-end;
+  }
+
   .app-shell {
     width: min(100% - 20px, 1180px);
     padding-top: 16px;
