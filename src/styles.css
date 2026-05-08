@@ -68,6 +68,30 @@ button {
   padding: 18px 0 30px;
 }
 
+.brand-block {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+}
+
+.brand-text {
+  min-width: 0;
+}
+
+.topbar-mascot {
+  width: clamp(86px, 12vw, 150px);
+  height: auto;
+  flex: 0 0 auto;
+  object-fit: contain;
+  filter: drop-shadow(0 14px 24px rgba(0, 0, 0, 0.32));
+  transform: translateY(4px);
+}
+
+[data-theme="light"] .topbar-mascot {
+  filter: drop-shadow(0 14px 24px rgba(30, 40, 60, 0.18));
+}
+
 .main-nav {
   display: flex;
   flex-wrap: wrap;
@@ -1005,6 +1029,14 @@ textarea:focus {
     align-items: stretch;
   }
 
+  .brand-block {
+    align-items: flex-start;
+  }
+
+  .topbar-mascot {
+    width: 120px;
+  }
+
   .main-nav {
     justify-content: flex-start;
   }
@@ -1066,6 +1098,18 @@ textarea:focus {
   .app-shell {
     width: min(100% - 20px, 1180px);
     padding-top: 16px;
+  }
+
+  .brand-block {
+    gap: 12px;
+  }
+
+  .topbar-mascot {
+    width: 82px;
+  }
+
+  .brand-text h1 {
+    font-size: clamp(2rem, 12vw, 3.2rem);
   }
 
   .site-header {

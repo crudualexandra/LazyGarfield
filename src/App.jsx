@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import mascotImage from "./mascot1.png";
 
 const STORAGE_KEYS = {
   series: "lazygarfield_series",
@@ -480,12 +481,20 @@ export default function App() {
   return (
     <div className="app-shell">
       <header className="site-header">
-        <div>
-          <p className="eyebrow">Personal TV tracking dashboard</p>
-          <h1>LazyGarfield</h1>
-          <p className="slogan">
-            Track what you watch, love, finish, drop, and plan to start next.
-          </p>
+        <div className="brand-block">
+          <img
+            src={mascotImage}
+            alt="LazyGarfield mascot"
+            className="topbar-mascot"
+          />
+
+          <div className="brand-text">
+            <p className="eyebrow">Personal TV tracking dashboard</p>
+            <h1>LazyGarfield</h1>
+            <p className="slogan">
+              Track what you watch, love, finish, drop, and plan to start next.
+            </p>
+          </div>
         </div>
 
         <nav className="main-nav" aria-label="Main navigation">
