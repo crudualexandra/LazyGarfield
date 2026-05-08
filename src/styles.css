@@ -123,6 +123,76 @@ button {
   border-color: transparent;
 }
 
+.app-layout {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.sidebar {
+  position: sticky;
+  top: 22px;
+}
+
+.sidebar-card {
+  background: linear-gradient(145deg, var(--card), rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  box-shadow: var(--shadow);
+  padding: 18px;
+}
+
+.sidebar-nav {
+  display: grid;
+  gap: 10px;
+}
+
+.sidebar-link {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 13px 14px;
+  background: var(--card);
+  color: var(--muted);
+  font-weight: 900;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: transform 0.2s ease, border 0.2s ease, background 0.2s ease,
+    color 0.2s ease;
+}
+
+.sidebar-link span {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--bg-soft);
+}
+
+.sidebar-link:hover {
+  transform: translateX(3px);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.sidebar-link.active {
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: #1b1000;
+  border-color: transparent;
+}
+
+.sidebar-link.active span {
+  background: rgba(27, 16, 0, 0.12);
+}
+
+.page-content {
+  min-width: 0;
+}
+
 .theme-toggle {
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -1049,6 +1119,29 @@ textarea:focus {
     grid-template-columns: repeat(2, 1fr);
   }
 
+  .app-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+  }
+
+  .sidebar-nav {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .sidebar-link {
+    justify-content: center;
+    text-align: center;
+    flex-direction: column;
+  }
+
+  .sidebar-link:hover {
+    transform: translateY(-2px);
+  }
+
   .hero-section {
     display: block;
   }
@@ -1142,6 +1235,20 @@ textarea:focus {
 
   .insights-grid {
     grid-template-columns: 1fr;
+  }
+
+  .sidebar-card {
+    border-radius: 24px;
+    padding: 14px;
+  }
+
+  .sidebar-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sidebar-link {
+    padding: 12px 10px;
+    font-size: 0.86rem;
   }
 
   .series-card {

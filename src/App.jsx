@@ -497,47 +497,70 @@ export default function App() {
           </div>
         </div>
 
-        <nav className="main-nav" aria-label="Main navigation">
-          <button
-            className={
-              activePage === "dashboard" ? "nav-button active" : "nav-button"
-            }
-            onClick={() => setActivePage("dashboard")}
-          >
-            Dashboard
-          </button>
-
-          <button
-            className={activePage === "library" ? "nav-button active" : "nav-button"}
-            onClick={() => setActivePage("library")}
-          >
-            Library
-          </button>
-
-          <button
-            className={activePage === "add" ? "nav-button active" : "nav-button"}
-            onClick={() => setActivePage("add")}
-          >
-            Add Series
-          </button>
-
-          <button
-            className={activePage === "insights" ? "nav-button active" : "nav-button"}
-            onClick={() => setActivePage("insights")}
-          >
-            Insights
-          </button>
-        </nav>
-
         <button
           className="theme-toggle"
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
         >
-          {theme === "dark" ? "☀️ Light Mode" : "🌙 Dark Mode"}
+          {theme === "dark" ? "☀️ " : "🌙 "}
         </button>
       </header>
 
-      <main>
+      <div className="app-layout">
+        <aside className="sidebar">
+          <div className="sidebar-card">
+            <p className="eyebrow">Menu</p>
+
+            <nav className="sidebar-nav" aria-label="Sidebar navigation">
+              <button
+                className={
+                  activePage === "dashboard"
+                    ? "sidebar-link active"
+                    : "sidebar-link"
+                }
+                onClick={() => setActivePage("dashboard")}
+              >
+                <span>🏠</span>
+                Dashboard
+              </button>
+
+              <button
+                className={
+                  activePage === "library"
+                    ? "sidebar-link active"
+                    : "sidebar-link"
+                }
+                onClick={() => setActivePage("library")}
+              >
+                <span>📚</span>
+                Library
+              </button>
+
+              <button
+                className={
+                  activePage === "add" ? "sidebar-link active" : "sidebar-link"
+                }
+                onClick={() => setActivePage("add")}
+              >
+                <span>➕</span>
+                Add Series
+              </button>
+
+              <button
+                className={
+                  activePage === "insights"
+                    ? "sidebar-link active"
+                    : "sidebar-link"
+                }
+                onClick={() => setActivePage("insights")}
+              >
+                <span>📊</span>
+                Insights
+              </button>
+            </nav>
+          </div>
+        </aside>
+
+        <main className="page-content">
         {activePage === "dashboard" && (
           <>
             <section className="hero-section">
@@ -1101,7 +1124,9 @@ export default function App() {
             </div>
           </section>
         )}
-      </main>
+
+        </main>
+      </div>
 
       <footer className="footer">
         <p>LazyGarfield —  web application.</p>
