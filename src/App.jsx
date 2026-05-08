@@ -492,442 +492,539 @@ export default function App() {
       </header>
 
       <main>
-        <section className="hero-section">
-          <div className="hero-content">
-            <span className="hero-badge">TV Series Personal Journal</span>
-            <h2>Your cinematic watchlist, organized in one place.</h2>
-            <p>
-              LazyGarfield is a client-side only React app where users can manage
-              series, filter by status or genre, rate shows, mark favorites, rate
-              individual episodes, and keep everything saved locally in the
-              browser.
-            </p>
-          </div>
-
-          <div className="hero-panel recommendations-panel">
-            <div className="recommendations-header">
-              <div>
-                <p className="eyebrow">Popular Now</p>
-                <h3>Recommended Series</h3>
+        {activePage === "dashboard" && (
+          <>
+            <section className="hero-section">
+              <div className="hero-content">
+                <span className="hero-badge">TV Series Personal Journal</span>
+                <h2>Your cinematic watchlist, organized in one place.</h2>
+                <p>
+                  LazyGarfield is a client-side only React app where users can manage
+                  series, filter by status or genre, rate shows, mark favorites, rate
+                  individual episodes, and keep everything saved locally in the
+                  browser.
+                </p>
               </div>
 
-              <div className="recommendation-arrows">
-                <button
-                  type="button"
-                  onClick={() => scrollRecommendations("left")}
-                  aria-label="Scroll recommendations left"
-                >
-                  ←
-                </button>
+              <div className="hero-panel recommendations-panel">
+                <div className="recommendations-header">
+                  <div>
+                    <p className="eyebrow">Popular Now</p>
+                    <h3>Recommended Series</h3>
+                  </div>
 
-                <button
-                  type="button"
-                  onClick={() => scrollRecommendations("right")}
-                  aria-label="Scroll recommendations right"
-                >
-                  →
-                </button>
-              </div>
-            </div>
+                  <div className="recommendation-arrows">
+                    <button
+                      type="button"
+                      onClick={() => scrollRecommendations("left")}
+                      aria-label="Scroll recommendations left"
+                    >
+                      ←
+                    </button>
 
-            <div
-              className="recommendations-scroll"
-              onWheel={handleRecommendationWheel}
-            >
-              {recommendedSeries.map((item) => (
-                <div className="recommendation-card" key={item.id}>
-                  <div className="recommendation-poster">{item.poster}</div>
-
-                  <div className="recommendation-info">
-                    <h4>{item.title}</h4>
-                    <p>{item.note}</p>
-
-                    <div className="recommendation-meta">
-                      <span>{item.genre}</span>
-                      <span>{"★".repeat(item.rating)}</span>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => scrollRecommendations("right")}
+                      aria-label="Scroll recommendations right"
+                    >
+                      →
+                    </button>
                   </div>
                 </div>
-              ))}
-            </div>
 
-            <p className="recommendations-note">Sample series</p>
-          </div>
-        </section>
-        <section className="stats-grid" aria-label="Series statistics">
-          <StatCard label="Total Series" value={stats.total} />
-          <StatCard label="Favorites" value={stats.favorites} />
-          <StatCard label="Completed" value={stats.completed} />
-          <StatCard label="Total Episodes" value={stats.totalEpisodes} />
-          <StatCard label="Watched Episodes" value={stats.watchedEpisodes} />
-          <StatCard label="Average Rating" value={`${stats.average}/5`} />
-        </section>
+                <div
+                  className="recommendations-scroll"
+                  onWheel={handleRecommendationWheel}
+                >
+                  {recommendedSeries.map((item) => (
+                    <div className="recommendation-card" key={item.id}>
+                      <div className="recommendation-poster">{item.poster}</div>
 
-        <section className="filters-section" aria-label="Search and filters">
-          <div className="section-title">
-            <div>
-              <p className="eyebrow">Search and filters</p>
-              <h2>Find your next episode mood</h2>
-            </div>
-          </div>
+                      <div className="recommendation-info">
+                        <h4>{item.title}</h4>
+                        <p>{item.note}</p>
 
-          <div className="filters-grid">
-            <label>
-              Search title
-              <input
-                type="text"
-                value={filters.search}
-                onChange={(event) =>
-                  setFilters((current) => ({
-                    ...current,
-                    search: event.target.value
-                  }))
-                }
-                placeholder="Search by title..."
-              />
-            </label>
-
-            <label>
-              Status
-              <select
-                value={filters.status}
-                onChange={(event) =>
-                  setFilters((current) => ({
-                    ...current,
-                    status: event.target.value
-                  }))
-                }
-              >
-                <option value="All">All</option>
-                {statuses.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label>
-              Genre
-              <select
-                value={filters.genre}
-                onChange={(event) =>
-                  setFilters((current) => ({
-                    ...current,
-                    genre: event.target.value
-                  }))
-                }
-              >
-                <option value="All">All</option>
-                {genres.map((genre) => (
-                  <option key={genre} value={genre}>
-                    {genre}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <button type="button" className="reset-button" onClick={resetFilters}>
-              Reset Filters
-            </button>
-          </div>
-        </section>
-
-        <section className="library-section">
-          <div className="section-title row-title">
-            <div>
-              <p className="eyebrow">Series library</p>
-              <h2>Your tracked shows</h2>
-            </div>
-            <p className="result-count">
-              Showing {filteredSeries.length} of {series.length}
-            </p>
-          </div>
-
-          {filteredSeries.length === 0 ? (
-            <div className="empty-state">
-              <div>📺</div>
-              <h3>No series found</h3>
-              <p>
-                Add a new series or reset the filters to see your full library.
-              </p>
-            </div>
-          ) : (
-            <div className="series-grid">
-              {filteredSeries.map((item) => {
-                const episodeForm = getEpisodeForm(item.id);
-
-                return (
-                  <article className="series-card" key={item.id}>
-                    <div className="poster">{item.poster}</div>
-
-                    <div className="card-content">
-                      <div className="card-top">
-                        <div>
-                          <h3>{item.title}</h3>
-                          <p>{item.description}</p>
-                        </div>
-
-                        <button
-                          type="button"
-                          className={`favorite-button${item.isFavorite ? " active" : ""}`}
-                          onClick={() => toggleFavorite(item.id)}
-                          aria-label={
-                            item.isFavorite ? "Unfavorite series" : "Favorite series"
-                          }
-                        >
-                          {item.isFavorite ? "♥" : "♡"}
-                        </button>
-                      </div>
-
-                      <div className="meta-row">
-                        <span>{item.genre}</span>
-                        <span>{item.status}</span>
-                        <span>{item.seasons} seasons</span>
-                        <span>{item.episodes?.length || 0} episodes</span>
-                      </div>
-
-                      <div className="rating-row">
-                        <label>
-                          Series rating
-                          <select
-                            value={item.rating}
-                            onChange={(event) => changeRating(item.id, event.target.value)}
-                          >
-                            {[1, 2, 3, 4, 5].map((rating) => (
-                              <option key={rating} value={rating}>
-                                {rating}/5
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-
-                        <div className="stars">
-                          {"★".repeat(item.rating)}
-                          {"☆".repeat(5 - item.rating)}
+                        <div className="recommendation-meta">
+                          <span>{item.genre}</span>
+                          <span>{"★".repeat(item.rating)}</span>
                         </div>
                       </div>
+                    </div>
+                  ))}
+                </div>
 
-                      <div className="episodes-box">
-                        <div className="episodes-header">
-                          <h4>Episodes</h4>
-                          <span>{item.episodes?.length || 0} saved</span>
-                        </div>
+                <p className="recommendations-note">Sample series</p>
+              </div>
+            </section>
 
-                        <div className="episode-form">
-                          <input
-                            type="text"
-                            placeholder="Episode title"
-                            value={episodeForm.title}
-                            onChange={(event) =>
-                              updateEpisodeForm(item.id, "title", event.target.value)
-                            }
-                          />
+            <section className="stats-grid" aria-label="Series statistics">
+              <StatCard label="Total Series" value={stats.total} />
+              <StatCard label="Favorites" value={stats.favorites} />
+              <StatCard label="Completed" value={stats.completed} />
+              <StatCard label="Total Episodes" value={stats.totalEpisodes} />
+              <StatCard label="Watched Episodes" value={stats.watchedEpisodes} />
+              <StatCard label="Average Rating" value={`${stats.average}/5`} />
+            </section>
+          </>
+        )}
 
-                          <input
-                            type="number"
-                            min="1"
-                            placeholder="S"
-                            value={episodeForm.season}
-                            onChange={(event) =>
-                              updateEpisodeForm(item.id, "season", event.target.value)
-                            }
-                          />
+        {activePage === "library" && (
+          <>
+            <section className="filters-section" aria-label="Search and filters">
+              <div className="section-title">
+                <div>
+                  <p className="eyebrow">Search and filters</p>
+                  <h2>Find your next episode mood</h2>
+                </div>
+              </div>
 
-                          <input
-                            type="number"
-                            min="1"
-                            placeholder="E"
-                            value={episodeForm.episode}
-                            onChange={(event) =>
-                              updateEpisodeForm(item.id, "episode", event.target.value)
-                            }
-                          />
+              <div className="filters-grid">
+                <label>
+                  Search title
+                  <input
+                    type="text"
+                    value={filters.search}
+                    onChange={(event) =>
+                      setFilters((current) => ({
+                        ...current,
+                        search: event.target.value
+                      }))
+                    }
+                    placeholder="Search by title..."
+                  />
+                </label>
 
-                          <select
-                            value={episodeForm.rating}
-                            onChange={(event) =>
-                              updateEpisodeForm(item.id, "rating", event.target.value)
-                            }
-                          >
-                            {[1, 2, 3, 4, 5].map((rating) => (
-                              <option key={rating} value={rating}>
-                                {rating}/5
-                              </option>
-                            ))}
-                          </select>
+                <label>
+                  Status
+                  <select
+                    value={filters.status}
+                    onChange={(event) =>
+                      setFilters((current) => ({
+                        ...current,
+                        status: event.target.value
+                      }))
+                    }
+                  >
+                    <option value="All">All</option>
+                    {statuses.map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  Genre
+                  <select
+                    value={filters.genre}
+                    onChange={(event) =>
+                      setFilters((current) => ({
+                        ...current,
+                        genre: event.target.value
+                      }))
+                    }
+                  >
+                    <option value="All">All</option>
+                    {genres.map((genre) => (
+                      <option key={genre} value={genre}>
+                        {genre}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <button
+                  type="button"
+                  className="reset-button"
+                  onClick={resetFilters}
+                >
+                  Reset Filters
+                </button>
+              </div>
+            </section>
+
+            <section className="library-section">
+              <div className="section-title row-title">
+                <div>
+                  <p className="eyebrow">Series library</p>
+                  <h2>Your tracked shows</h2>
+                </div>
+                <p className="result-count">
+                  Showing {filteredSeries.length} of {series.length}
+                </p>
+              </div>
+
+              {filteredSeries.length === 0 ? (
+                <div className="empty-state">
+                  <div>📺</div>
+                  <h3>No series found</h3>
+                  <p>
+                    Add a new series or reset the filters to see your full library.
+                  </p>
+                </div>
+              ) : (
+                <div className="series-grid">
+                  {filteredSeries.map((item) => {
+                    const episodeForm = getEpisodeForm(item.id);
+
+                    return (
+                      <article className="series-card" key={item.id}>
+                        <div className="poster">{item.poster}</div>
+
+                        <div className="card-content">
+                          <div className="card-top">
+                            <div>
+                              <h3>{item.title}</h3>
+                              <p>{item.description}</p>
+                            </div>
+
+                            <button
+                              type="button"
+                              className={`favorite-button${
+                                item.isFavorite ? " active" : ""
+                              }`}
+                              onClick={() => toggleFavorite(item.id)}
+                              aria-label={
+                                item.isFavorite
+                                  ? "Unfavorite series"
+                                  : "Favorite series"
+                              }
+                            >
+                              {item.isFavorite ? "♥" : "♡"}
+                            </button>
+                          </div>
+
+                          <div className="meta-row">
+                            <span>{item.genre}</span>
+                            <span>{item.status}</span>
+                            <span>{item.seasons} seasons</span>
+                            <span>{item.episodes?.length || 0} episodes</span>
+                          </div>
+
+                          <div className="rating-row">
+                            <label>
+                              Series rating
+                              <select
+                                value={item.rating}
+                                onChange={(event) =>
+                                  changeRating(item.id, event.target.value)
+                                }
+                              >
+                                {[1, 2, 3, 4, 5].map((rating) => (
+                                  <option key={rating} value={rating}>
+                                    {rating}/5
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+
+                            <div className="stars">
+                              {"★".repeat(item.rating)}
+                              {"☆".repeat(5 - item.rating)}
+                            </div>
+                          </div>
+
+                          <div className="episodes-box">
+                            <div className="episodes-header">
+                              <h4>Episodes</h4>
+                              <span>{item.episodes?.length || 0} saved</span>
+                            </div>
+
+                            <div className="episode-form">
+                              <input
+                                type="text"
+                                placeholder="Episode title"
+                                value={episodeForm.title}
+                                onChange={(event) =>
+                                  updateEpisodeForm(
+                                    item.id,
+                                    "title",
+                                    event.target.value
+                                  )
+                                }
+                              />
+
+                              <input
+                                type="number"
+                                min="1"
+                                placeholder="S"
+                                value={episodeForm.season}
+                                onChange={(event) =>
+                                  updateEpisodeForm(
+                                    item.id,
+                                    "season",
+                                    event.target.value
+                                  )
+                                }
+                              />
+
+                              <input
+                                type="number"
+                                min="1"
+                                placeholder="E"
+                                value={episodeForm.episode}
+                                onChange={(event) =>
+                                  updateEpisodeForm(
+                                    item.id,
+                                    "episode",
+                                    event.target.value
+                                  )
+                                }
+                              />
+
+                              <select
+                                value={episodeForm.rating}
+                                onChange={(event) =>
+                                  updateEpisodeForm(
+                                    item.id,
+                                    "rating",
+                                    event.target.value
+                                  )
+                                }
+                              >
+                                {[1, 2, 3, 4, 5].map((rating) => (
+                                  <option key={rating} value={rating}>
+                                    {rating}/5
+                                  </option>
+                                ))}
+                              </select>
+
+                              <button
+                                type="button"
+                                className="add-episode-button"
+                                onClick={() => addEpisode(item.id)}
+                              >
+                                Add
+                              </button>
+                            </div>
+
+                            {(item.episodes || []).length === 0 ? (
+                              <p className="episode-empty">No episodes rated yet.</p>
+                            ) : (
+                              <div className="episode-list">
+                                {(item.episodes || []).map((episode) => (
+                                  <div className="episode-item" key={episode.id}>
+                                    <div>
+                                      <strong>{episode.title}</strong>
+                                      <span>
+                                        S{episode.season} · E{episode.episode}
+                                      </span>
+                                    </div>
+
+                                    <div className="episode-actions">
+                                      <button
+                                        type="button"
+                                        className={`watched-button ${
+                                          episode.watched ? "active" : ""
+                                        }`}
+                                        onClick={() =>
+                                          toggleEpisodeWatched(
+                                            item.id,
+                                            episode.id
+                                          )
+                                        }
+                                      >
+                                        {episode.watched ? "Watched" : "Unwatched"}
+                                      </button>
+
+                                      <select
+                                        value={episode.rating}
+                                        onChange={(event) =>
+                                          changeEpisodeRating(
+                                            item.id,
+                                            episode.id,
+                                            event.target.value
+                                          )
+                                        }
+                                      >
+                                        {[1, 2, 3, 4, 5].map((rating) => (
+                                          <option key={rating} value={rating}>
+                                            {rating}/5
+                                          </option>
+                                        ))}
+                                      </select>
+
+                                      <button
+                                        type="button"
+                                        className="mini-delete-button"
+                                        onClick={() =>
+                                          deleteEpisode(item.id, episode.id)
+                                        }
+                                      >
+                                        ×
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
 
                           <button
                             type="button"
-                            className="add-episode-button"
-                            onClick={() => addEpisode(item.id)}
+                            className="delete-button"
+                            onClick={() => deleteSeries(item.id)}
                           >
-                            Add
+                            Delete Series
                           </button>
                         </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          </>
+        )}
 
-                        {(item.episodes || []).length === 0 ? (
-                          <p className="episode-empty">No episodes rated yet.</p>
-                        ) : (
-                          <div className="episode-list">
-                            {(item.episodes || []).map((episode) => (
-                              <div className="episode-item" key={episode.id}>
-                                <div>
-                                  <strong>{episode.title}</strong>
-                                  <span>
-                                    S{episode.season} · E{episode.episode}
-                                  </span>
-                                </div>
+        {activePage === "add" && (
+          <>
+            <section id="add-series" className="form-section">
+              <div className="section-title">
+                <p className="eyebrow">Add new series</p>
+                <h2>Expand your LazyGarfield</h2>
+              </div>
 
-                                <div className="episode-actions">
-                                  <button
-                                    type="button"
-                                    className={`watched-button ${
-                                      episode.watched ? "active" : ""
-                                    }`}
-                                    onClick={() =>
-                                      toggleEpisodeWatched(item.id, episode.id)
-                                    }
-                                  >
-                                    {episode.watched ? "Watched" : "Unwatched"}
-                                  </button>
+              <form className="series-form" onSubmit={addSeries}>
+                <label>
+                  Title
+                  <input
+                    type="text"
+                    placeholder="Example: Stranger Things"
+                    value={form.title}
+                    onChange={(event) => updateForm("title", event.target.value)}
+                  />
+                </label>
 
-                                  <select
-                                    value={episode.rating}
-                                    onChange={(event) =>
-                                      changeEpisodeRating(
-                                        item.id,
-                                        episode.id,
-                                        event.target.value
-                                      )
-                                    }
-                                  >
-                                    {[1, 2, 3, 4, 5].map((rating) => (
-                                      <option key={rating} value={rating}>
-                                        {rating}/5
-                                      </option>
-                                    ))}
-                                  </select>
+                <label>
+                  Poster emoji/icon
+                  <input
+                    type="text"
+                    maxLength="4"
+                    value={form.poster}
+                    onChange={(event) => updateForm("poster", event.target.value)}
+                  />
+                </label>
 
-                                  <button
-                                    type="button"
-                                    className="mini-delete-button"
-                                    onClick={() => deleteEpisode(item.id, episode.id)}
-                                  >
-                                    ×
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                <label>
+                  Genre
+                  <select
+                    value={form.genre}
+                    onChange={(event) => updateForm("genre", event.target.value)}
+                  >
+                    {genres.map((genre) => (
+                      <option key={genre}>{genre}</option>
+                    ))}
+                  </select>
+                </label>
 
-                      <button
-                        type="button"
-                        className="delete-button"
-                        onClick={() => deleteSeries(item.id)}
-                      >
-                        Delete Series
-                      </button>
-                    </div>
-                  </article>
-                );
-              })}
+                <label>
+                  Status
+                  <select
+                    value={form.status}
+                    onChange={(event) => updateForm("status", event.target.value)}
+                  >
+                    {statuses.map((status) => (
+                      <option key={status}>{status}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  Rating
+                  <select
+                    value={form.rating}
+                    onChange={(event) => updateForm("rating", event.target.value)}
+                  >
+                    {[1, 2, 3, 4, 5].map((rating) => (
+                      <option key={rating} value={rating}>
+                        {rating}/5
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  Seasons
+                  <input
+                    type="number"
+                    min="1"
+                    value={form.seasons}
+                    onChange={(event) => updateForm("seasons", event.target.value)}
+                  />
+                </label>
+
+                <label className="full-field">
+                  Description
+                  <textarea
+                    rows="4"
+                    placeholder="Short description..."
+                    value={form.description}
+                    onChange={(event) =>
+                      updateForm("description", event.target.value)
+                    }
+                  />
+                </label>
+
+                <button className="submit-button" type="submit">
+                  Add Series
+                </button>
+              </form>
+            </section>
+          </>
+        )}
+
+        {activePage === "insights" && (
+          <section className="insights-section">
+            <div className="section-title">
+              <p className="eyebrow">Insights</p>
+              <h2>Your watching activity</h2>
+              <p className="insights-description">
+                A quick overview of your personal LazyGarfield library, based only
+                on data saved in your browser.
+              </p>
             </div>
-          )}
-        </section>
 
-        <section id="add-series" className="form-section">
-          <div className="section-title">
-            <p className="eyebrow">Add new series</p>
-            <h2>Expand your LazyGarfield</h2>
-          </div>
+            <div className="insights-grid">
+              <div className="insight-card">
+                <span>📺</span>
+                <h3>{stats.total}</h3>
+                <p>Total tracked series</p>
+              </div>
 
-          <form className="series-form" onSubmit={addSeries}>
-            <label>
-              Title
-              <input
-                type="text"
-                placeholder="Example: Stranger Things"
-                value={form.title}
-                onChange={(event) => updateForm("title", event.target.value)}
-              />
-            </label>
+              <div className="insight-card">
+                <span>♥</span>
+                <h3>{stats.favorites}</h3>
+                <p>Favorite series</p>
+              </div>
 
-            <label>
-              Poster emoji/icon
-              <input
-                type="text"
-                maxLength="4"
-                value={form.poster}
-                onChange={(event) => updateForm("poster", event.target.value)}
-              />
-            </label>
+              <div className="insight-card">
+                <span>✅</span>
+                <h3>{stats.completed}</h3>
+                <p>Completed series</p>
+              </div>
 
-            <label>
-              Genre
-              <select
-                value={form.genre}
-                onChange={(event) => updateForm("genre", event.target.value)}
-              >
-                {genres.map((genre) => (
-                  <option key={genre}>{genre}</option>
-                ))}
-              </select>
-            </label>
+              <div className="insight-card">
+                <span>★</span>
+                <h3>{stats.average}/5</h3>
+                <p>Average series rating</p>
+              </div>
 
-            <label>
-              Status
-              <select
-                value={form.status}
-                onChange={(event) => updateForm("status", event.target.value)}
-              >
-                {statuses.map((status) => (
-                  <option key={status}>{status}</option>
-                ))}
-              </select>
-            </label>
+              <div className="insight-card">
+                <span>🎞️</span>
+                <h3>{stats.totalEpisodes}</h3>
+                <p>Total rated episodes</p>
+              </div>
 
-            <label>
-              Rating
-              <select
-                value={form.rating}
-                onChange={(event) => updateForm("rating", event.target.value)}
-              >
-                {[1, 2, 3, 4, 5].map((rating) => (
-                  <option key={rating} value={rating}>
-                    {rating}/5
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label>
-              Seasons
-              <input
-                type="number"
-                min="1"
-                value={form.seasons}
-                onChange={(event) => updateForm("seasons", event.target.value)}
-              />
-            </label>
-
-            <label className="full-field">
-              Description
-              <textarea
-                rows="4"
-                placeholder="Short description..."
-                value={form.description}
-                onChange={(event) => updateForm("description", event.target.value)}
-              />
-            </label>
-
-            <button className="submit-button" type="submit">
-              Add Series
-            </button>
-          </form>
-        </section>
+              <div className="insight-card">
+                <span>👀</span>
+                <h3>{stats.watchedEpisodes}</h3>
+                <p>Watched episodes</p>
+              </div>
+            </div>
+          </section>
+        )}
       </main>
 
       <footer className="footer">
