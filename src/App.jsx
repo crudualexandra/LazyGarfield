@@ -16,6 +16,11 @@ const demoSeries = [
     seasons: 3,
     description: "A mind-bending mystery about time, family secrets, and consequences.",
     poster: "🕰️",
+    episodes: [
+      createEpisode("Secrets", 1, 1, 5),
+      createEpisode("Lies", 1, 2, 4),
+      createEpisode("Past and Present", 1, 3, 5)
+    ],
     isFavorite: true,
     createdAt: new Date().toISOString()
   },
@@ -28,6 +33,7 @@ const demoSeries = [
     seasons: 3,
     description: "A tense, emotional story about food, pressure, and family.",
     poster: "🍽️",
+    episodes: [createEpisode("System", 1, 1, 4), createEpisode("Hands", 1, 2, 5)],
     isFavorite: false,
     createdAt: new Date().toISOString()
   },
@@ -40,6 +46,10 @@ const demoSeries = [
     seasons: 1,
     description: "A visually rich animated series with strong characters and conflict.",
     poster: "⚡",
+    episodes: [
+      createEpisode("Welcome to the Playground", 1, 1, 5),
+      createEpisode("Some Mysteries Are Better Left Unsolved", 1, 2, 5)
+    ],
     isFavorite: true,
     createdAt: new Date().toISOString()
   },
@@ -52,6 +62,7 @@ const demoSeries = [
     seasons: 1,
     description: "A gothic mystery series with dark humor and supernatural style.",
     poster: "🖤",
+    episodes: [createEpisode("Wednesday's Child Is Full of Woe", 1, 1, 4)],
     isFavorite: false,
     createdAt: new Date().toISOString()
   }
@@ -80,10 +91,39 @@ const emptyForm = {
   poster: "🎬"
 };
 
+function createEpisode(title, season, episode, rating = 3) {
+  return {
+    id: crypto.randomUUID(),
+    title,
+    season,
+    episode,
+    rating,
+    watched: false,
+    createdAt: new Date().toISOString()
+  };
+}
+
+const emptyEpisodeForm = {
+  title: "",
+  season: 1,
+  episode: 1,
+  rating: 3
+};
+
 export default function App() {
   const [series, setSeries] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.series);
-    return saved ? JSON.parse(saved) : demoSeries;
+
+    if (saved) {
+      const parsed = JSON.parse(saved);
+
+      return parsed.map((item) => ({
+        ...item,
+        episodes: Array.isArray(item.episodes) ? item.episodes : []
+      }));
+    }
+
+    return demoSeries;
   });
 
   const [filters, setFilters] = useState(() => {
@@ -99,6 +139,7 @@ export default function App() {
   });
 
   const [form, setForm] = useState(emptyForm);
+  const [episodeForms, setEpisodeForms] = useState({});
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem(STORAGE_KEYS.theme) || "dark";
   });
@@ -119,6 +160,16 @@ export default function App() {
     const total = series.length;
     const favorites = series.filter((item) => item.isFavorite).length;
     const completed = series.filter((item) => item.status === "Completed").length;
+    const totalEpisodes = series.reduce(
+      (sum, item) => sum + (item.episodes?.length || 0),
+      0
+    );
+
+    const watchedEpisodes = series.reduce(
+      (sum, item) =>
+        sum + (item.episodes || []).filter((episode) => episode.watched).length,
+      0
+    );
     const average =
       total === 0
         ? 0
@@ -128,6 +179,8 @@ export default function App() {
       total,
       favorites,
       completed,
+      totalEpisodes,
+      watchedEpisodes,
       average: average.toFixed(1)
     };
   }, [series]);
@@ -192,6 +245,110 @@ export default function App() {
     });
   }
 
+  function updateEpisodeForm(seriesId, field, value) {
+    setEpisodeForms((current) => ({
+      ...current,
+      [seriesId]: {
+        ...(current[seriesId] || emptyEpisodeForm),
+        [field]: value
+      }
+    }));
+  }
+
+  function getEpisodeForm(seriesId) {
+    return episodeForms[seriesId] || emptyEpisodeForm;
+  }
+
+  function addEpisode(seriesId) {
+    const currentForm = getEpisodeForm(seriesId);
+
+    if (!currentForm.title.trim()) {
+      alert("Please enter an episode title.");
+      return;
+    }
+
+    const newEpisode = {
+      id: crypto.randomUUID(),
+      title: currentForm.title.trim(),
+      season: Number(currentForm.season),
+      episode: Number(currentForm.episode),
+      rating: Number(currentForm.rating),
+      watched: true,
+      createdAt: new Date().toISOString()
+    };
+
+    setSeries((current) =>
+      current.map((item) =>
+        item.id === seriesId
+          ? {
+              ...item,
+              episodes: [newEpisode, ...(item.episodes || [])]
+            }
+          : item
+      )
+    );
+
+    setEpisodeForms((current) => ({
+      ...current,
+      [seriesId]: emptyEpisodeForm
+    }));
+  }
+
+  function changeEpisodeRating(seriesId, episodeId, rating) {
+    setSeries((current) =>
+      current.map((item) =>
+        item.id === seriesId
+          ? {
+              ...item,
+              episodes: (item.episodes || []).map((episode) =>
+                episode.id === episodeId
+                  ? {
+                      ...episode,
+                      rating: Number(rating)
+                    }
+                  : episode
+              )
+            }
+          : item
+      )
+    );
+  }
+
+  function toggleEpisodeWatched(seriesId, episodeId) {
+    setSeries((current) =>
+      current.map((item) =>
+        item.id === seriesId
+          ? {
+              ...item,
+              episodes: (item.episodes || []).map((episode) =>
+                episode.id === episodeId
+                  ? {
+                      ...episode,
+                      watched: !episode.watched
+                    }
+                  : episode
+              )
+            }
+          : item
+      )
+    );
+  }
+
+  function deleteEpisode(seriesId, episodeId) {
+    setSeries((current) =>
+      current.map((item) =>
+        item.id === seriesId
+          ? {
+              ...item,
+              episodes: (item.episodes || []).filter(
+                (episode) => episode.id !== episodeId
+              )
+            }
+          : item
+      )
+    );
+  }
+
   function addSeries(event) {
     event.preventDefault();
 
@@ -209,6 +366,7 @@ export default function App() {
       seasons: Number(form.seasons),
       description: form.description.trim() || "No description added yet.",
       poster: form.poster.trim() || "🎬",
+      episodes: [],
       isFavorite: false,
       createdAt: new Date().toISOString()
     };
@@ -260,6 +418,8 @@ export default function App() {
           <StatCard label="Total Series" value={stats.total} />
           <StatCard label="Favorites" value={stats.favorites} />
           <StatCard label="Completed" value={stats.completed} />
+          <StatCard label="Total Episodes" value={stats.totalEpisodes} />
+          <StatCard label="Watched Episodes" value={stats.watchedEpisodes} />
           <StatCard label="Average Rating" value={`${stats.average}/5`} />
         </section>
 
@@ -354,64 +514,186 @@ export default function App() {
             </div>
           ) : (
             <div className="series-grid">
-              {filteredSeries.map((item) => (
-                <article className="series-card" key={item.id}>
-                  <div className="poster">{item.poster}</div>
+              {filteredSeries.map((item) => {
+                const episodeForm = getEpisodeForm(item.id);
 
-                  <div className="card-content">
-                    <div className="card-top">
-                      <div>
-                        <h3>{item.title}</h3>
-                        <p>{item.description}</p>
+                return (
+                  <article className="series-card" key={item.id}>
+                    <div className="poster">{item.poster}</div>
+
+                    <div className="card-content">
+                      <div className="card-top">
+                        <div>
+                          <h3>{item.title}</h3>
+                          <p>{item.description}</p>
+                        </div>
+
+                        <button
+                          type="button"
+                          className={`favorite-button${item.isFavorite ? " active" : ""}`}
+                          onClick={() => toggleFavorite(item.id)}
+                          aria-label={
+                            item.isFavorite ? "Unfavorite series" : "Favorite series"
+                          }
+                        >
+                          {item.isFavorite ? "♥" : "♡"}
+                        </button>
+                      </div>
+
+                      <div className="meta-row">
+                        <span>{item.genre}</span>
+                        <span>{item.status}</span>
+                        <span>{item.seasons} seasons</span>
+                        <span>{item.episodes?.length || 0} episodes</span>
+                      </div>
+
+                      <div className="rating-row">
+                        <label>
+                          Series rating
+                          <select
+                            value={item.rating}
+                            onChange={(event) => changeRating(item.id, event.target.value)}
+                          >
+                            {[1, 2, 3, 4, 5].map((rating) => (
+                              <option key={rating} value={rating}>
+                                {rating}/5
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+
+                        <div className="stars">
+                          {"★".repeat(item.rating)}
+                          {"☆".repeat(5 - item.rating)}
+                        </div>
+                      </div>
+
+                      <div className="episodes-box">
+                        <div className="episodes-header">
+                          <h4>Episodes</h4>
+                          <span>{item.episodes?.length || 0} saved</span>
+                        </div>
+
+                        <div className="episode-form">
+                          <input
+                            type="text"
+                            placeholder="Episode title"
+                            value={episodeForm.title}
+                            onChange={(event) =>
+                              updateEpisodeForm(item.id, "title", event.target.value)
+                            }
+                          />
+
+                          <input
+                            type="number"
+                            min="1"
+                            placeholder="S"
+                            value={episodeForm.season}
+                            onChange={(event) =>
+                              updateEpisodeForm(item.id, "season", event.target.value)
+                            }
+                          />
+
+                          <input
+                            type="number"
+                            min="1"
+                            placeholder="E"
+                            value={episodeForm.episode}
+                            onChange={(event) =>
+                              updateEpisodeForm(item.id, "episode", event.target.value)
+                            }
+                          />
+
+                          <select
+                            value={episodeForm.rating}
+                            onChange={(event) =>
+                              updateEpisodeForm(item.id, "rating", event.target.value)
+                            }
+                          >
+                            {[1, 2, 3, 4, 5].map((rating) => (
+                              <option key={rating} value={rating}>
+                                {rating}/5
+                              </option>
+                            ))}
+                          </select>
+
+                          <button
+                            type="button"
+                            className="add-episode-button"
+                            onClick={() => addEpisode(item.id)}
+                          >
+                            Add
+                          </button>
+                        </div>
+
+                        {(item.episodes || []).length === 0 ? (
+                          <p className="episode-empty">No episodes rated yet.</p>
+                        ) : (
+                          <div className="episode-list">
+                            {(item.episodes || []).map((episode) => (
+                              <div className="episode-item" key={episode.id}>
+                                <div>
+                                  <strong>{episode.title}</strong>
+                                  <span>
+                                    S{episode.season} · E{episode.episode}
+                                  </span>
+                                </div>
+
+                                <div className="episode-actions">
+                                  <button
+                                    type="button"
+                                    className={`watched-button ${
+                                      episode.watched ? "active" : ""
+                                    }`}
+                                    onClick={() =>
+                                      toggleEpisodeWatched(item.id, episode.id)
+                                    }
+                                  >
+                                    {episode.watched ? "Watched" : "Unwatched"}
+                                  </button>
+
+                                  <select
+                                    value={episode.rating}
+                                    onChange={(event) =>
+                                      changeEpisodeRating(
+                                        item.id,
+                                        episode.id,
+                                        event.target.value
+                                      )
+                                    }
+                                  >
+                                    {[1, 2, 3, 4, 5].map((rating) => (
+                                      <option key={rating} value={rating}>
+                                        {rating}/5
+                                      </option>
+                                    ))}
+                                  </select>
+
+                                  <button
+                                    type="button"
+                                    className="mini-delete-button"
+                                    onClick={() => deleteEpisode(item.id, episode.id)}
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
                       <button
                         type="button"
-                        className={`favorite-button${item.isFavorite ? " active" : ""}`}
-                        onClick={() => toggleFavorite(item.id)}
-                        aria-label={item.isFavorite ? "Unfavorite series" : "Favorite series"}
+                        className="delete-button"
+                        onClick={() => deleteSeries(item.id)}
                       >
-                        {item.isFavorite ? "♥" : "♡"}
+                        Delete Series
                       </button>
                     </div>
-
-                    <div className="meta-row">
-                      <span>{item.genre}</span>
-                      <span>{item.status}</span>
-                      <span>{item.seasons} seasons</span>
-                    </div>
-
-                    <div className="rating-row">
-                      <label>
-                        Series rating
-                        <select
-                          value={item.rating}
-                          onChange={(event) => changeRating(item.id, event.target.value)}
-                        >
-                          {[1, 2, 3, 4, 5].map((rating) => (
-                            <option key={rating} value={rating}>
-                              {rating}/5
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-
-                      <div className="stars">
-                        {"★".repeat(item.rating)}
-                        {"☆".repeat(5 - item.rating)}
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      className="delete-button"
-                      onClick={() => deleteSeries(item.id)}
-                    >
-                      Delete Series
-                    </button>
-                  </div>
-                </article>
-              ))}
+                  </article>
+                );
+              })}
             </div>
           )}
         </section>
