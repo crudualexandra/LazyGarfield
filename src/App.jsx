@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const demoSeries = [
   {
@@ -82,6 +82,11 @@ export default function App() {
     genre: "All"
   });
   const [form, setForm] = useState(emptyForm);
+  const [theme, setTheme] = useState("dark");
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
   const stats = useMemo(() => {
     const total = series.length;
     const favorites = series.filter((item) => item.isFavorite).length;
@@ -194,6 +199,13 @@ export default function App() {
             Track what you watch, love, finish, drop, and plan to start next.
           </p>
         </div>
+
+        <button
+          className="theme-toggle"
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+        >
+          {theme === "dark" ? "☀️ Light Mode" : "🌙 Dark Mode"}
+        </button>
       </header>
 
       <main>

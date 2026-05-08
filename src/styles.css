@@ -15,6 +15,20 @@
   --shadow: 0 24px 80px rgba(0, 0, 0, 0.36);
 }
 
+[data-theme="light"] {
+  --bg: #f6f7fb;
+  --bg-soft: #ffffff;
+  --card: rgba(255, 255, 255, 0.9);
+  --card-solid: #ffffff;
+  --text: #161923;
+  --muted: #657084;
+  --accent: #ff8a00;
+  --accent-strong: #e45f00;
+  --danger: #d82445;
+  --border: rgba(20, 30, 50, 0.12);
+  --shadow: 0 24px 70px rgba(30, 40, 60, 0.14);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -52,6 +66,21 @@ button {
   align-items: center;
   gap: 24px;
   padding: 18px 0 30px;
+}
+
+.theme-toggle {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 12px 18px;
+  font-weight: 800;
+  background: var(--card);
+  color: var(--text);
+  transition: transform 0.2s ease, border 0.2s ease;
+}
+
+.theme-toggle:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
 }
 
 .eyebrow {
