@@ -1019,6 +1019,18 @@ textarea:focus {
   font-weight: 700;
 }
 
+.add-page-mascot {
+  width: min(190px, 70%);
+  display: block;
+  margin: 4px auto 18px;
+  object-fit: contain;
+  filter: drop-shadow(0 16px 26px rgba(0, 0, 0, 0.24));
+}
+
+[data-theme="light"] .add-page-mascot {
+  filter: drop-shadow(0 16px 26px rgba(30, 40, 60, 0.16));
+}
+
 .add-preview-card {
   margin-top: 22px;
   padding: 18px;
@@ -1059,18 +1071,29 @@ textarea:focus {
 
 .genre-picker > span {
   color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 0.78rem;
+}
+
+.genre-helper {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 .genre-chip-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
+  margin-top: 4px;
 }
 
 .genre-chip {
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 10px 12px;
+  padding: 10px 14px;
   background: var(--card);
   color: var(--muted);
   font-weight: 900;
@@ -1249,6 +1272,19 @@ textarea:focus {
   .sidebar-link {
     padding: 12px 10px;
     font-size: 0.86rem;
+  }
+
+  .add-page-mascot {
+    width: min(150px, 65%);
+  }
+
+  .genre-chip-grid {
+    gap: 8px;
+  }
+
+  .genre-chip {
+    padding: 9px 11px;
+    font-size: 0.84rem;
   }
 
   .series-card {

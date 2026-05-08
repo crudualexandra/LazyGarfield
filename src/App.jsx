@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import mascotImage from "./mascot1.png";
+import mascotAddImage from "./mascot2.png";
 
 const STORAGE_KEYS = {
   series: "lazygarfield_series",
@@ -979,27 +980,6 @@ export default function App() {
                     />
                   </label>
 
-                  <div className="genre-picker">
-                    <span>Genres</span>
-
-                    <div className="genre-chip-grid">
-                      {genres.map((genre) => (
-                        <button
-                          key={genre}
-                          type="button"
-                          className={
-                            form.genres.includes(genre)
-                              ? "genre-chip active"
-                              : "genre-chip"
-                          }
-                          onClick={() => toggleFormGenre(genre)}
-                        >
-                          {genre}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
                   <label>
                     Status
                     <select
@@ -1036,6 +1016,30 @@ export default function App() {
                     />
                   </label>
 
+                  <div className="genre-picker full-field">
+                    <span>Genres</span>
+                    <p className="genre-helper">
+                      Select one or more genres that match this series.
+                    </p>
+
+                    <div className="genre-chip-grid">
+                      {genres.map((genre) => (
+                        <button
+                          key={genre}
+                          type="button"
+                          className={
+                            form.genres.includes(genre)
+                              ? "genre-chip active"
+                              : "genre-chip"
+                          }
+                          onClick={() => toggleFormGenre(genre)}
+                        >
+                          {genre}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <label className="full-field">
                     Description
                     <textarea
@@ -1057,6 +1061,12 @@ export default function App() {
               <aside className="add-help-panel">
                 <p className="eyebrow">Guide</p>
                 <h3>How to organize your library</h3>
+
+                <img
+                  src={mascotAddImage}
+                  alt="LazyGarfield guide mascot"
+                  className="add-page-mascot"
+                />
 
                 <ul>
                   <li>Use status to separate current shows from future plans.</li>
