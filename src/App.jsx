@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 
+const STORAGE_KEYS = {
+  series: "lazygarfield_series",
+  theme: "lazygarfield_theme",
+  filters: "lazygarfield_filters"
+};
+
 const demoSeries = [
   {
     id: crypto.randomUUID(),
@@ -75,16 +81,38 @@ const emptyForm = {
 };
 
 export default function App() {
-  const [series, setSeries] = useState(demoSeries);
-  const [filters, setFilters] = useState({
-    search: "",
-    status: "All",
-    genre: "All"
+  const [series, setSeries] = useState(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.series);
+    return saved ? JSON.parse(saved) : demoSeries;
   });
+
+  const [filters, setFilters] = useState(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.filters);
+
+    return saved
+      ? JSON.parse(saved)
+      : {
+          search: "",
+          status: "All",
+          genre: "All"
+        };
+  });
+
   const [form, setForm] = useState(emptyForm);
-  const [theme, setTheme] = useState("dark");
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem(STORAGE_KEYS.theme) || "dark";
+  });
 
   useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.series, JSON.stringify(series));
+  }, [series]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.filters, JSON.stringify(filters));
+  }, [filters]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.theme, theme);
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
   const stats = useMemo(() => {
