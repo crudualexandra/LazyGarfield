@@ -1005,6 +1005,18 @@ textarea:focus {
     align-items: stretch;
   }
 
+  .main-nav {
+    justify-content: flex-start;
+  }
+
+  .add-page-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .insights-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
   .hero-section {
     display: block;
   }
@@ -1063,12 +1075,28 @@ textarea:focus {
   .hero-content,
   .filters-section,
   .library-section,
-  .form-section {
+  .form-section,
+  .add-help-panel,
+  .insights-section {
     border-radius: 24px;
     padding: 20px;
   }
 
+  .main-nav {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .nav-button {
+    width: 100%;
+  }
+
   .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .insights-grid {
     grid-template-columns: 1fr;
   }
 
