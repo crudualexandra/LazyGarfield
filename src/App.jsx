@@ -51,8 +51,26 @@ const demoSeries = [
   }
 ];
 
+const statuses = ["Watching", "Completed", "Plan to Watch", "Dropped"];
+
+const genres = [
+  "Drama",
+  "Comedy",
+  "Sci-Fi",
+  "Fantasy",
+  "Thriller",
+  "Romance",
+  "Animation",
+  "Documentary"
+];
+
 export default function App() {
   const [series, setSeries] = useState(demoSeries);
+  const [filters, setFilters] = useState({
+    search: "",
+    status: "All",
+    genre: "All"
+  });
   const stats = useMemo(() => {
     const total = series.length;
     const favorites = series.filter((item) => item.isFavorite).length;
@@ -85,6 +103,29 @@ export default function App() {
           : item
       )
     );
+  }
+
+  const filteredSeries = useMemo(() => {
+    return series.filter((item) => {
+      const matchesSearch = item.title
+        .toLowerCase()
+        .includes(filters.search.toLowerCase());
+
+      const matchesStatus =
+        filters.status === "All" || item.status === filters.status;
+
+      const matchesGenre = filters.genre === "All" || item.genre === filters.genre;
+
+      return matchesSearch && matchesStatus && matchesGenre;
+    });
+  }, [series, filters]);
+
+  function resetFilters() {
+    setFilters({
+      search: "",
+      status: "All",
+      genre: "All"
+    });
   }
 
   return (
@@ -126,17 +167,89 @@ export default function App() {
           <StatCard label="Average Rating" value={`${stats.average}/5`} />
         </section>
 
+        <section className="filters-section" aria-label="Search and filters">
+          <div className="section-title">
+            <div>
+              <p className="eyebrow">Search and filters</p>
+              <h2>Find your next episode mood</h2>
+            </div>
+          </div>
+
+          <div className="filters-grid">
+            <label>
+              Search title
+              <input
+                type="text"
+                value={filters.search}
+                onChange={(event) =>
+                  setFilters((current) => ({
+                    ...current,
+                    search: event.target.value
+                  }))
+                }
+                placeholder="Search by title..."
+              />
+            </label>
+
+            <label>
+              Status
+              <select
+                value={filters.status}
+                onChange={(event) =>
+                  setFilters((current) => ({
+                    ...current,
+                    status: event.target.value
+                  }))
+                }
+              >
+                <option value="All">All</option>
+                {statuses.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Genre
+              <select
+                value={filters.genre}
+                onChange={(event) =>
+                  setFilters((current) => ({
+                    ...current,
+                    genre: event.target.value
+                  }))
+                }
+              >
+                <option value="All">All</option>
+                {genres.map((genre) => (
+                  <option key={genre} value={genre}>
+                    {genre}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <button type="button" className="reset-button" onClick={resetFilters}>
+              Reset Filters
+            </button>
+          </div>
+        </section>
+
         <section className="library-section">
           <div className="section-title row-title">
             <div>
               <p className="eyebrow">Series library</p>
               <h2>Your tracked shows</h2>
             </div>
-            <p className="result-count">Showing {series.length}</p>
+            <p className="result-count">
+              Showing {filteredSeries.length} of {series.length}
+            </p>
           </div>
 
           <div className="series-grid">
-            {series.map((item) => (
+            {filteredSeries.map((item) => (
               <article className="series-card" key={item.id}>
                 <div className="poster">{item.poster}</div>
 
