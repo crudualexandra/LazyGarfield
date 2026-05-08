@@ -279,6 +279,43 @@ h1 {
   letter-spacing: 2px;
   font-size: 1.05rem;
 }
+
+.favorite-button {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.favorite-button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.favorite-button.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.delete-button {
+  width: 100%;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--danger);
+  background: var(--danger);
+  color: var(--text);
+  font-weight: 800;
+}
+
+.delete-button:hover {
+  filter: brightness(1.05);
+}
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

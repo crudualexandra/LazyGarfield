@@ -52,23 +52,41 @@ const demoSeries = [
 ];
 
 export default function App() {
-  const [series] = useState(demoSeries);
-    const stats = useMemo(() => {
-  const total = series.length;
-  const favorites = series.filter((item) => item.isFavorite).length;
-  const completed = series.filter((item) => item.status === "Completed").length;
-  const average =
-    total === 0
-      ? 0
-      : series.reduce((sum, item) => sum + Number(item.rating), 0) / total;
+  const [series, setSeries] = useState(demoSeries);
+  const stats = useMemo(() => {
+    const total = series.length;
+    const favorites = series.filter((item) => item.isFavorite).length;
+    const completed = series.filter((item) => item.status === "Completed").length;
+    const average =
+      total === 0
+        ? 0
+        : series.reduce((sum, item) => sum + Number(item.rating), 0) / total;
 
-  return {
-    total,
-    favorites,
-    completed,
-    average: average.toFixed(1)
-  };
-}, [series]);
+    return {
+      total,
+      favorites,
+      completed,
+      average: average.toFixed(1)
+    };
+  }, [series]);
+
+  function deleteSeries(id) {
+    setSeries((current) => current.filter((item) => item.id !== id));
+  }
+
+  function toggleFavorite(id) {
+    setSeries((current) =>
+      current.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              isFavorite: !item.isFavorite
+            }
+          : item
+      )
+    );
+  }
+
   return (
     <div className="app-shell">
       <header className="site-header">
@@ -102,11 +120,11 @@ export default function App() {
           </div>
         </section>
         <section className="stats-grid" aria-label="Series statistics">
-  <StatCard label="Total Series" value={stats.total} />
-  <StatCard label="Favorites" value={stats.favorites} />
-  <StatCard label="Completed" value={stats.completed} />
-  <StatCard label="Average Rating" value={`${stats.average}/5`} />
-</section>
+          <StatCard label="Total Series" value={stats.total} />
+          <StatCard label="Favorites" value={stats.favorites} />
+          <StatCard label="Completed" value={stats.completed} />
+          <StatCard label="Average Rating" value={`${stats.average}/5`} />
+        </section>
 
         <section className="library-section">
           <div className="section-title row-title">
@@ -128,6 +146,15 @@ export default function App() {
                       <h3>{item.title}</h3>
                       <p>{item.description}</p>
                     </div>
+
+                    <button
+                      type="button"
+                      className={`favorite-button${item.isFavorite ? " active" : ""}`}
+                      onClick={() => toggleFavorite(item.id)}
+                      aria-label={item.isFavorite ? "Unfavorite series" : "Favorite series"}
+                    >
+                      {item.isFavorite ? "♥" : "♡"}
+                    </button>
                   </div>
 
                   <div className="meta-row">
@@ -140,6 +167,14 @@ export default function App() {
                     {"★".repeat(item.rating)}
                     {"☆".repeat(5 - item.rating)}
                   </div>
+
+                  <button
+                    type="button"
+                    className="delete-button"
+                    onClick={() => deleteSeries(item.id)}
+                  >
+                    Delete Series
+                  </button>
                 </div>
               </article>
             ))}
