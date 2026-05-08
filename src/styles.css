@@ -340,6 +340,29 @@ textarea:focus {
   margin-top: 20px;
 }
 
+.empty-state {
+  padding: 50px 20px;
+  text-align: center;
+  margin-top: 20px;
+  background: linear-gradient(145deg, var(--card), rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--border);
+  border-radius: 32px;
+  box-shadow: var(--shadow);
+}
+
+.empty-state div {
+  font-size: 4rem;
+}
+
+.empty-state h3 {
+  font-size: 1.8rem;
+  margin-bottom: 8px;
+}
+
+.empty-state p {
+  color: var(--muted);
+}
+
 .series-card {
   display: grid;
   grid-template-columns: 110px minmax(0, 1fr);

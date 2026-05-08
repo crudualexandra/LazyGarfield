@@ -344,66 +344,76 @@ export default function App() {
             </p>
           </div>
 
-          <div className="series-grid">
-            {filteredSeries.map((item) => (
-              <article className="series-card" key={item.id}>
-                <div className="poster">{item.poster}</div>
+          {filteredSeries.length === 0 ? (
+            <div className="empty-state">
+              <div>📺</div>
+              <h3>No series found</h3>
+              <p>
+                Add a new series or reset the filters to see your full library.
+              </p>
+            </div>
+          ) : (
+            <div className="series-grid">
+              {filteredSeries.map((item) => (
+                <article className="series-card" key={item.id}>
+                  <div className="poster">{item.poster}</div>
 
-                <div className="card-content">
-                  <div className="card-top">
-                    <div>
-                      <h3>{item.title}</h3>
-                      <p>{item.description}</p>
+                  <div className="card-content">
+                    <div className="card-top">
+                      <div>
+                        <h3>{item.title}</h3>
+                        <p>{item.description}</p>
+                      </div>
+
+                      <button
+                        type="button"
+                        className={`favorite-button${item.isFavorite ? " active" : ""}`}
+                        onClick={() => toggleFavorite(item.id)}
+                        aria-label={item.isFavorite ? "Unfavorite series" : "Favorite series"}
+                      >
+                        {item.isFavorite ? "♥" : "♡"}
+                      </button>
+                    </div>
+
+                    <div className="meta-row">
+                      <span>{item.genre}</span>
+                      <span>{item.status}</span>
+                      <span>{item.seasons} seasons</span>
+                    </div>
+
+                    <div className="rating-row">
+                      <label>
+                        Series rating
+                        <select
+                          value={item.rating}
+                          onChange={(event) => changeRating(item.id, event.target.value)}
+                        >
+                          {[1, 2, 3, 4, 5].map((rating) => (
+                            <option key={rating} value={rating}>
+                              {rating}/5
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <div className="stars">
+                        {"★".repeat(item.rating)}
+                        {"☆".repeat(5 - item.rating)}
+                      </div>
                     </div>
 
                     <button
                       type="button"
-                      className={`favorite-button${item.isFavorite ? " active" : ""}`}
-                      onClick={() => toggleFavorite(item.id)}
-                      aria-label={item.isFavorite ? "Unfavorite series" : "Favorite series"}
+                      className="delete-button"
+                      onClick={() => deleteSeries(item.id)}
                     >
-                      {item.isFavorite ? "♥" : "♡"}
+                      Delete Series
                     </button>
                   </div>
-
-                  <div className="meta-row">
-                    <span>{item.genre}</span>
-                    <span>{item.status}</span>
-                    <span>{item.seasons} seasons</span>
-                  </div>
-
-                  <div className="rating-row">
-                    <label>
-                      Series rating
-                      <select
-                        value={item.rating}
-                        onChange={(event) => changeRating(item.id, event.target.value)}
-                      >
-                        {[1, 2, 3, 4, 5].map((rating) => (
-                          <option key={rating} value={rating}>
-                            {rating}/5
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <div className="stars">
-                      {"★".repeat(item.rating)}
-                      {"☆".repeat(5 - item.rating)}
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    className="delete-button"
-                    onClick={() => deleteSeries(item.id)}
-                  >
-                    Delete Series
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
+                </article>
+              ))}
+            </div>
+          )}
         </section>
 
         <section id="add-series" className="form-section">
