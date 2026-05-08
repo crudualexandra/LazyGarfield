@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 const demoSeries = [
   {
@@ -53,7 +53,22 @@ const demoSeries = [
 
 export default function App() {
   const [series] = useState(demoSeries);
+    const stats = useMemo(() => {
+  const total = series.length;
+  const favorites = series.filter((item) => item.isFavorite).length;
+  const completed = series.filter((item) => item.status === "Completed").length;
+  const average =
+    total === 0
+      ? 0
+      : series.reduce((sum, item) => sum + Number(item.rating), 0) / total;
 
+  return {
+    total,
+    favorites,
+    completed,
+    average: average.toFixed(1)
+  };
+}, [series]);
   return (
     <div className="app-shell">
       <header className="site-header">
@@ -86,6 +101,12 @@ export default function App() {
             <p>Build your personal series archive.</p>
           </div>
         </section>
+        <section className="stats-grid" aria-label="Series statistics">
+  <StatCard label="Total Series" value={stats.total} />
+  <StatCard label="Favorites" value={stats.favorites} />
+  <StatCard label="Completed" value={stats.completed} />
+  <StatCard label="Average Rating" value={`${stats.average}/5`} />
+</section>
 
         <section className="library-section">
           <div className="section-title row-title">
@@ -125,6 +146,14 @@ export default function App() {
           </div>
         </section>
       </main>
+    </div>
+  );
+}
+function StatCard({ label, value }) {
+  return (
+    <div className="stat-card">
+      <strong>{value}</strong>
+      <span>{label}</span>
     </div>
   );
 }
