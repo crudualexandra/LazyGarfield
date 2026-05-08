@@ -807,3 +807,113 @@ textarea:focus {
   color: var(--muted);
   font-weight: 700;
 }
+
+@media (max-width: 900px) {
+  .site-header,
+  .hero-section,
+  .row-title {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .hero-section {
+    display: block;
+  }
+
+  .hero-panel {
+    margin-top: 18px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .filters-grid,
+  .series-form {
+    grid-template-columns: 1fr;
+  }
+
+  .series-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .recommendation-card {
+    flex-basis: 170px;
+  }
+}
+
+@media (max-width: 720px) {
+  .episode-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .add-episode-button {
+    grid-column: 1 / -1;
+  }
+
+  .episode-item {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .episode-actions {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 560px) {
+  .app-shell {
+    width: min(100% - 20px, 1180px);
+    padding-top: 16px;
+  }
+
+  .site-header {
+    padding-bottom: 18px;
+  }
+
+  .hero-content,
+  .filters-section,
+  .library-section,
+  .form-section {
+    border-radius: 24px;
+    padding: 20px;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .series-card {
+    grid-template-columns: 1fr;
+  }
+
+  .poster {
+    min-height: 140px;
+  }
+
+  .rating-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .rating-row label {
+    max-width: none;
+  }
+
+  .recommendations-panel {
+    padding: 20px;
+  }
+
+  .recommendations-header {
+    flex-direction: column;
+  }
+
+  .recommendation-card {
+    flex-basis: 160px;
+  }
+
+  .recommendation-poster {
+    height: 130px;
+  }
+}
