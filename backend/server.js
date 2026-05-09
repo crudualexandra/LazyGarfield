@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import jwt from "jsonwebtoken";
+import swaggerUi from "swagger-ui-express";
 import * as crypto from "node:crypto";
 
 const app = express();
@@ -174,6 +175,404 @@ function requirePermission(permission) {
 		next();
 	};
 }
+
+const swaggerDocument = {
+	openapi: "3.0.0",
+	info: {
+		title: "LazyGarfield API",
+		version: "1.0.0",
+		description:
+			"CRUD REST API for LazyGarfield TV series tracker with JWT authorization.",
+	},
+	servers: [{ url: "http://localhost:4000" }],
+	components: {
+		securitySchemes: {
+			bearerAuth: {
+				type: "http",
+				scheme: "bearer",
+				bearerFormat: "JWT",
+			},
+		},
+		schemas: {
+			Series: {
+				type: "object",
+				required: ["id", "title"],
+				properties: {
+					id: { type: "string", example: "1" },
+					title: { type: "string", example: "Dark" },
+					genres: {
+						type: "array",
+						items: { type: "string" },
+						example: ["Sci-Fi", "Thriller"],
+					},
+					status: { type: "string", example: "Completed" },
+					rating: { type: "number", example: 9 },
+					seasons: { type: "number", example: 3 },
+					description: { type: "string" },
+					poster: { type: "string", example: "🎬" },
+					isFavorite: { type: "boolean", example: true },
+					createdAt: {
+						type: "string",
+						format: "date-time",
+						example: "2026-05-09T00:00:00.000Z",
+					},
+					episodes: { type: "array", items: {} },
+				},
+			},
+			SeriesCreate: {
+				type: "object",
+				properties: {
+					title: { type: "string" },
+					genres: { type: "array", items: { type: "string" } },
+					status: { type: "string" },
+					rating: { type: "number" },
+					seasons: { type: "number" },
+					description: { type: "string" },
+					poster: { type: "string" },
+					isFavorite: { type: "boolean" },
+					episodes: { type: "array", items: {} },
+				},
+				required: ["title"],
+			},
+			SeriesUpdate: {
+				type: "object",
+				description: "Partial update payload; id is ignored by API.",
+				properties: {
+					id: { type: "string" },
+					title: { type: "string" },
+					genres: { type: "array", items: { type: "string" } },
+					status: { type: "string" },
+					rating: { type: "number" },
+					seasons: { type: "number" },
+					description: { type: "string" },
+					poster: { type: "string" },
+					isFavorite: { type: "boolean" },
+					episodes: { type: "array", items: {} },
+				},
+			},
+			TokenRequest: {
+				type: "object",
+				properties: {
+					role: { type: "string", example: "VISITOR" },
+					permissions: {
+						type: "array",
+						items: { type: "string" },
+						example: ["READ"],
+					},
+				},
+			},
+			TokenResponse: {
+				type: "object",
+				properties: {
+					token: { type: "string" },
+					expiresIn: { type: "string", example: "1 minute" },
+					role: { type: "string" },
+					permissions: { type: "array", items: { type: "string" } },
+				},
+			},
+			ErrorResponse: {
+				type: "object",
+				properties: {
+					message: { type: "string" },
+				},
+				required: ["message"],
+			},
+			PaginatedSeriesResponse: {
+				type: "object",
+				properties: {
+					total: { type: "number" },
+					limit: { type: "number" },
+					skip: { type: "number" },
+					data: {
+						type: "array",
+						items: { $ref: "#/components/schemas/Series" },
+					},
+				},
+			},
+		},
+	},
+	paths: {
+		"/token": {
+			post: {
+				summary: "Create a demo JWT token",
+				description:
+					"Generates a short-lived JWT (expires in 1 minute) containing role and permissions.",
+				requestBody: {
+					required: false,
+					content: {
+						"application/json": {
+							schema: { $ref: "#/components/schemas/TokenRequest" },
+						},
+					},
+				},
+				responses: {
+					"200": {
+						description: "Success",
+						content: {
+							"application/json": {
+								schema: { $ref: "#/components/schemas/TokenResponse" },
+							},
+						},
+					},
+				},
+			},
+		},
+		"/api/series": {
+			get: {
+				summary: "List series (paginated)",
+				security: [{ bearerAuth: [] }],
+				parameters: [
+					{
+						name: "limit",
+						in: "query",
+						required: false,
+						schema: { type: "integer", default: 10 },
+						description: "Max items to return",
+					},
+					{
+						name: "skip",
+						in: "query",
+						required: false,
+						schema: { type: "integer", default: 0 },
+						description: "Items to skip",
+					},
+				],
+				responses: {
+					"200": {
+						description: "Success",
+						content: {
+							"application/json": {
+								schema: {
+									$ref: "#/components/schemas/PaginatedSeriesResponse",
+								},
+							},
+						},
+					},
+					"401": {
+						description: "Missing/invalid/expired token",
+						content: {
+							"application/json": {
+								schema: { $ref: "#/components/schemas/ErrorResponse" },
+							},
+						},
+					},
+					"403": {
+						description: "Insufficient permission",
+						content: {
+							"application/json": {
+								schema: { $ref: "#/components/schemas/ErrorResponse" },
+							},
+						},
+					},
+				},
+			},
+			post: {
+				summary: "Create a new series",
+				security: [{ bearerAuth: [] }],
+				requestBody: {
+					required: true,
+					content: {
+						"application/json": {
+							schema: { $ref: "#/components/schemas/SeriesCreate" },
+						},
+					},
+				},
+				responses: {
+					"201": {
+						description: "Created",
+						content: {
+							"application/json": {
+								schema: { $ref: "#/components/schemas/Series" },
+							},
+						},
+					},
+					"400": {
+						description: "Validation error (missing title)",
+						content: {
+							"application/json": {
+								schema: { $ref: "#/components/schemas/ErrorResponse" },
+							},
+						},
+					},
+					"401": {
+						description: "Missing/invalid/expired token",
+						content: {
+							"application/json": {
+								schema: { $ref: "#/components/schemas/ErrorResponse" },
+							},
+						},
+					},
+					"403": {
+						description: "Insufficient permission",
+						content: {
+							"application/json": {
+								schema: { $ref: "#/components/schemas/ErrorResponse" },
+							},
+						},
+					},
+				},
+			},
+		},
+		"/api/series/{id}": {
+			get: {
+				summary: "Get a series by id",
+				security: [{ bearerAuth: [] }],
+				parameters: [
+					{
+						name: "id",
+						in: "path",
+						required: true,
+						schema: { type: "string" },
+						description: "Series id",
+					},
+				],
+				responses: {
+					"200": {
+						description: "Success",
+						content: {
+							"application/json": {
+								schema: { $ref: "#/components/schemas/Series" },
+							},
+						},
+					},
+					"401": {
+						description: "Missing/invalid/expired token",
+						content: {
+							"application/json": {
+								schema: { $ref: "#/components/schemas/ErrorResponse" },
+							},
+						},
+					},
+					"403": {
+						description: "Insufficient permission",
+						content: {
+							"application/json": {
+								schema: { $ref: "#/components/schemas/ErrorResponse" },
+							},
+						},
+					},
+					"404": {
+						description: "Series not found",
+						content: {
+							"application/json": {
+								schema: { $ref: "#/components/schemas/ErrorResponse" },
+							},
+						},
+					},
+				},
+			},
+			put: {
+				summary: "Update a series",
+				security: [{ bearerAuth: [] }],
+				parameters: [
+					{
+						name: "id",
+						in: "path",
+						required: true,
+						schema: { type: "string" },
+						description: "Series id",
+					},
+				],
+				requestBody: {
+					required: true,
+					content: {
+						"application/json": {
+							schema: { $ref: "#/components/schemas/SeriesUpdate" },
+						},
+					},
+				},
+				responses: {
+					"200": {
+						description: "Success",
+						content: {
+							"application/json": {
+								schema: { $ref: "#/components/schemas/Series" },
+							},
+						},
+					},
+					"401": {
+						description: "Missing/invalid/expired token",
+						content: {
+							"application/json": {
+								schema: { $ref: "#/components/schemas/ErrorResponse" },
+							},
+						},
+					},
+					"403": {
+						description: "Insufficient permission",
+						content: {
+							"application/json": {
+								schema: { $ref: "#/components/schemas/ErrorResponse" },
+							},
+						},
+					},
+					"404": {
+						description: "Series not found",
+						content: {
+							"application/json": {
+								schema: { $ref: "#/components/schemas/ErrorResponse" },
+							},
+						},
+					},
+				},
+			},
+			delete: {
+				summary: "Delete a series",
+				security: [{ bearerAuth: [] }],
+				parameters: [
+					{
+						name: "id",
+						in: "path",
+						required: true,
+						schema: { type: "string" },
+						description: "Series id",
+					},
+				],
+				responses: {
+					"200": {
+						description: "Deleted",
+						content: {
+							"application/json": {
+								schema: {
+									type: "object",
+									properties: {
+										message: { type: "string" },
+									},
+								},
+							},
+						},
+					},
+					"401": {
+						description: "Missing/invalid/expired token",
+						content: {
+							"application/json": {
+								schema: { $ref: "#/components/schemas/ErrorResponse" },
+							},
+						},
+					},
+					"403": {
+						description: "Insufficient permission",
+						content: {
+							"application/json": {
+								schema: { $ref: "#/components/schemas/ErrorResponse" },
+							},
+						},
+					},
+					"404": {
+						description: "Series not found",
+						content: {
+							"application/json": {
+								schema: { $ref: "#/components/schemas/ErrorResponse" },
+							},
+						},
+					},
+				},
+			},
+		},
+	},
+};
+
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 app.get("/", (req, res) => {
 	res.status(200).json({
