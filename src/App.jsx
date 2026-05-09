@@ -354,6 +354,30 @@ export default function App() {
     return data;
   }
 
+  async function loadSeriesFromApi() {
+    try {
+      setIsApiLoading(true);
+
+      const data = await apiRequest("/api/series?limit=100&skip=0");
+
+      setSeries(data.data || []);
+      setApiMode(true);
+      setApiStatus(`Loaded ${data.data?.length || 0} series from backend API.`);
+    } catch (error) {
+      setApiStatus(error.message);
+    } finally {
+      setIsApiLoading(false);
+    }
+  }
+
+  async function connectToApi() {
+    const token = await getApiToken();
+
+    if (token) {
+      await loadSeriesFromApi();
+    }
+  }
+
   const [series, setSeries] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.series);
 
@@ -1187,6 +1211,44 @@ export default function App() {
                 <p>Watched episodes</p>
               </div>
             </div>
+
+            <section className="api-panel">
+              <div className="section-title">
+                <p className="eyebrow">Backend API</p>
+                <h2>Lab 7 Full Integration</h2>
+                <p className="insights-description">
+                  LazyGarfield can connect to the protected Express API and load the series library using JWT authorization.
+                </p>
+              </div>
+
+              <div className="api-actions">
+                <button
+                  className="submit-button"
+                  type="button"
+                  onClick={connectToApi}
+                  disabled={isApiLoading}
+                >
+                  {isApiLoading ? "Connecting..." : "Connect to Backend API"}
+                </button>
+
+                <button
+                  className="details-toggle-button"
+                  type="button"
+                  onClick={loadSeriesFromApi}
+                  disabled={isApiLoading || !apiMode}
+                >
+                  Reload Series from API
+                </button>
+              </div>
+
+              {apiStatus && <p className="api-message">{apiStatus}</p>}
+
+              {apiMode && (
+                <p className="api-message">
+                  API mode is active. Series data is loaded from the backend.
+                </p>
+              )}
+            </section>
           </section>
         )}
 
