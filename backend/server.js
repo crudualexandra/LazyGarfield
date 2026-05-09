@@ -3,139 +3,11 @@ import cors from "cors";
 import jwt from "jsonwebtoken";
 import swaggerUi from "swagger-ui-express";
 import * as crypto from "node:crypto";
+import { db, serializeSeries, deserializeSeries } from "./db.js";
 
 const app = express();
 const PORT = 4000;
 const JWT_SECRET = "lazygarfield_super_secret_demo_key";
-
-let series = [
-	{
-		id: "1",
-		title: "Dark",
-		genres: ["Sci-Fi", "Thriller", "Mystery"],
-		status: "Completed",
-		rating: 9.0,
-		seasons: 3,
-		description:
-			"A mind-bending mystery where time travel connects four families across generations in a small German town.",
-		poster: "🕰️",
-		isFavorite: true,
-		createdAt: "2026-05-09T00:00:00.000Z",
-		episodes: [],
-	},
-	{
-		id: "2",
-		title: "Gossip Girl",
-		genres: ["Drama", "Romance"],
-		status: "Completed",
-		rating: 7.5,
-		seasons: 6,
-		description:
-			"A scandal blog fuels secrets and rivalries among privileged teens on Manhattan’s Upper East Side.",
-		poster: "💋",
-		isFavorite: false,
-		createdAt: "2026-05-09T00:00:00.000Z",
-		episodes: [],
-	},
-	{
-		id: "3",
-		title: "The Crown",
-		genres: ["Drama", "History"],
-		status: "Completed",
-		rating: 8.6,
-		seasons: 6,
-		description:
-			"A historical drama following the reign of Queen Elizabeth II and the events that shaped modern Britain.",
-		poster: "👑",
-		isFavorite: false,
-		createdAt: "2026-05-09T00:00:00.000Z",
-		episodes: [],
-	},
-	{
-		id: "4",
-		title: "The Queen's Gambit",
-		genres: ["Drama"],
-		status: "Completed",
-		rating: 8.6,
-		seasons: 1,
-		description:
-			"A chess prodigy rises to fame while battling addiction and the pressure of competition.",
-		poster: "♟️",
-		isFavorite: true,
-		createdAt: "2026-05-09T00:00:00.000Z",
-		episodes: [],
-	},
-	{
-		id: "5",
-		title: "Game of Thrones",
-		genres: ["Fantasy", "Drama", "Adventure"],
-		status: "Completed",
-		rating: 9.2,
-		seasons: 8,
-		description:
-			"Noble families clash for the Iron Throne as ancient threats awaken beyond the Wall.",
-		poster: "🐉",
-		isFavorite: true,
-		createdAt: "2026-05-09T00:00:00.000Z",
-		episodes: [],
-	},
-	{
-		id: "6",
-		title: "The Vampire Diaries",
-		genres: ["Fantasy", "Drama", "Romance"],
-		status: "Completed",
-		rating: 7.7,
-		seasons: 8,
-		description:
-			"A teen’s life changes when two vampire brothers return to a small town filled with supernatural secrets.",
-		poster: "🩸",
-		isFavorite: false,
-		createdAt: "2026-05-09T00:00:00.000Z",
-		episodes: [],
-	},
-	{
-		id: "7",
-		title: "Sherlock",
-		genres: ["Crime", "Mystery", "Drama"],
-		status: "Completed",
-		rating: 9.1,
-		seasons: 4,
-		description:
-			"A modern take on Sherlock Holmes as he solves cases in London with Dr. Watson.",
-		poster: "🔎",
-		isFavorite: true,
-		createdAt: "2026-05-09T00:00:00.000Z",
-		episodes: [],
-	},
-	{
-		id: "8",
-		title: "House of Cards",
-		genres: ["Drama", "Thriller", "Politics"],
-		status: "Completed",
-		rating: 8.6,
-		seasons: 1,
-		description:
-			"A ruthless politician schemes for power in Washington, D.C. Watched only season 1.",
-		poster: "🏛️",
-		isFavorite: false,
-		createdAt: "2026-05-09T00:00:00.000Z",
-		episodes: [],
-	},
-	{
-		id: "9",
-		title: "Black Mirror",
-		genres: ["Sci-Fi", "Thriller", "Drama"],
-		status: "Completed",
-		rating: 8.7,
-		seasons: 6,
-		description:
-			"An anthology series exploring the dark side of technology and modern society.",
-		poster: "🪞",
-		isFavorite: true,
-		createdAt: "2026-05-09T00:00:00.000Z",
-		episodes: [],
-	},
-];
 
 app.use(cors());
 app.use(express.json());
@@ -630,14 +502,18 @@ app.get(
 			skipRaw === undefined || Number.isNaN(Number(skipRaw))
 				? 0
 				: Number(skipRaw);
-
-		const paginatedSeries = series.slice(skip, skip + limit);
+		const rows = db
+			.prepare(
+				"SELECT * FROM series ORDER BY createdAt DESC LIMIT ? OFFSET ?"
+			)
+			.all(limit, skip);
+		const countRow = db.prepare("SELECT COUNT(*) AS count FROM series").get();
 
 		res.status(200).json({
-			total: series.length,
+			total: countRow.count,
 			limit,
 			skip,
-			data: paginatedSeries,
+			data: rows.map(deserializeSeries),
 		});
 	}
 );
@@ -648,13 +524,13 @@ app.get(
 	requirePermission("READ"),
 	(req, res) => {
 		const { id } = req.params;
-		const found = series.find((s) => s.id === id);
+		const row = db.prepare("SELECT * FROM series WHERE id = ?").get(id);
 
-		if (!found) {
+		if (!row) {
 			return res.status(404).json({ message: "Series not found" });
 		}
 
-		res.status(200).json(found);
+		res.status(200).json(deserializeSeries(row));
 	}
 );
 
@@ -680,8 +556,35 @@ app.post(
 			createdAt: new Date().toISOString(),
 			episodes: req.body.episodes || [],
 		};
-
-		series.unshift(newSeries);
+		db.prepare(
+			`
+				INSERT INTO series (
+					id,
+					title,
+					genres,
+					status,
+					rating,
+					seasons,
+					description,
+					poster,
+					isFavorite,
+					createdAt,
+					episodes
+				) VALUES (
+					@id,
+					@title,
+					@genres,
+					@status,
+					@rating,
+					@seasons,
+					@description,
+					@poster,
+					@isFavorite,
+					@createdAt,
+					@episodes
+				)
+			`
+		).run(serializeSeries(newSeries));
 
 		res.status(201).json(newSeries);
 	}
@@ -693,19 +596,39 @@ app.put(
 	requirePermission("WRITE"),
 	(req, res) => {
 		const { id } = req.params;
-		const index = series.findIndex((s) => s.id === id);
+		const row = db.prepare("SELECT * FROM series WHERE id = ?").get(id);
 
-		if (index === -1) {
+		if (!row) {
 			return res.status(404).json({ message: "Series not found" });
 		}
 
+		const existingSeries = deserializeSeries(row);
+
 		const updatedSeries = {
-			...series[index],
+			...existingSeries,
 			...req.body,
-			id: series[index].id,
+			id: existingSeries.id,
+			genres: req.body.genres ?? existingSeries.genres,
+			episodes: req.body.episodes ?? existingSeries.episodes,
 		};
 
-		series[index] = updatedSeries;
+		db.prepare(
+			`
+				UPDATE series SET
+					title = @title,
+					genres = @genres,
+					status = @status,
+					rating = @rating,
+					seasons = @seasons,
+					description = @description,
+					poster = @poster,
+					isFavorite = @isFavorite,
+					createdAt = @createdAt,
+					episodes = @episodes
+				WHERE id = @id
+			`
+		).run(serializeSeries(updatedSeries));
+
 		res.status(200).json(updatedSeries);
 	}
 );
@@ -716,21 +639,23 @@ app.delete(
 	requirePermission("DELETE"),
 	(req, res) => {
 		const { id } = req.params;
-		const index = series.findIndex((s) => s.id === id);
+		const row = db.prepare("SELECT * FROM series WHERE id = ?").get(id);
 
-		if (index === -1) {
+		if (!row) {
 			return res.status(404).json({ message: "Series not found" });
 		}
 
-		series.splice(index, 1);
+		db.prepare("DELETE FROM series WHERE id = ?").run(id);
 		res.status(200).json({ message: "Series deleted successfully" });
 	}
 );
 
 app.get("/api/public-series", (req, res) => {
+	const rows = db.prepare("SELECT * FROM series ORDER BY createdAt DESC").all();
+
 	res.status(200).json({
-		total: series.length,
-		data: series,
+		total: rows.length,
+		data: rows.map(deserializeSeries),
 	});
 });
 
