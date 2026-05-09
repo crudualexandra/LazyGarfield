@@ -138,6 +138,42 @@ let series = [
 app.use(cors());
 app.use(express.json());
 
+function authenticateToken(req, res, next) {
+	const authorization = req.headers.authorization;
+
+	if (!authorization) {
+		return res.status(401).json({ message: "Authorization header is required" });
+	}
+
+	const [scheme, token] = authorization.split(" ");
+
+	if (scheme !== "Bearer" || !token) {
+		return res.status(401).json({ message: "Bearer token is required" });
+	}
+
+	try {
+		const decoded = jwt.verify(token, JWT_SECRET);
+		req.user = decoded;
+		next();
+	} catch {
+		return res.status(401).json({ message: "Invalid or expired token" });
+	}
+}
+
+function requirePermission(permission) {
+	return (req, res, next) => {
+		const permissions = req.user?.permissions ?? [];
+
+		if (!permissions.includes(permission)) {
+			return res
+				.status(403)
+				.json({ message: `Permission ${permission} is required` });
+		}
+
+		next();
+	};
+}
+
 app.get("/", (req, res) => {
 	res.status(200).json({
 		message: "LazyGarfield API is running",
@@ -165,6 +201,18 @@ app.post("/token", (req, res) => {
 		permissions,
 	});
 });
+
+app.get(
+	"/api/protected-test",
+	authenticateToken,
+	requirePermission("READ"),
+	(req, res) => {
+		res.status(200).json({
+			message: "Protected route accessed successfully",
+			user: req.user,
+		});
+	}
+);
 
 app.get("/api/public-series", (req, res) => {
 	res.status(200).json({
