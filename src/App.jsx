@@ -6,7 +6,8 @@ const STORAGE_KEYS = {
   series: "lazygarfield_series",
   theme: "lazygarfield_theme",
   filters: "lazygarfield_filters",
-  page: "lazygarfield_page"
+  page: "lazygarfield_page",
+  apiMode: "lazygarfield_api_mode"
 };
 
 const API_BASE_URL = "http://localhost:4000";
@@ -320,7 +321,10 @@ export default function App() {
   const [apiToken, setApiToken] = useState("");
   const [apiStatus, setApiStatus] = useState("");
   const [isApiLoading, setIsApiLoading] = useState(false);
-  const [apiMode, setApiMode] = useState(false);
+  const [apiMode, setApiMode] = useState(() => {
+    return localStorage.getItem(STORAGE_KEYS.apiMode) === "true";
+  });
+  const [hasAutoLoadedApi, setHasAutoLoadedApi] = useState(false);
 
   async function getApiToken() {
     try {
@@ -423,8 +427,16 @@ export default function App() {
     const token = await getApiToken();
 
     if (token) {
+      setApiMode(true);
       await loadSeriesFromApi();
     }
+  }
+
+  function disconnectFromApi() {
+    setApiMode(false);
+    setApiToken("");
+    setApiStatus("Switched to local mode. The app is using localStorage fallback.");
+    setHasAutoLoadedApi(false);
   }
 
   const [series, setSeries] = useState(() => {
@@ -462,6 +474,40 @@ export default function App() {
   });
 
   const [selectedSeriesId, setSelectedSeriesId] = useState(null);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.apiMode, String(apiMode));
+  }, [apiMode]);
+
+  useEffect(() => {
+    if (!apiMode || hasAutoLoadedApi) {
+      return;
+    }
+
+    async function autoConnectToApi() {
+      try {
+        setHasAutoLoadedApi(true);
+        setIsApiLoading(true);
+
+        const token = await getApiToken();
+
+        if (!token) {
+          return;
+        }
+
+        const data = await apiRequest("/api/series?limit=100&skip=0");
+
+        setSeries((data.data || []).map(normalizeSeriesItem));
+        setApiStatus(`Auto-loaded ${data.data?.length || 0} series from backend API.`);
+      } catch (error) {
+        setApiStatus(error.message);
+      } finally {
+        setIsApiLoading(false);
+      }
+    }
+
+    autoConnectToApi();
+  }, [apiMode, hasAutoLoadedApi]);
 
   useEffect(() => {
     if (!apiMode) {
@@ -1436,6 +1482,14 @@ export default function App() {
                   disabled={isApiLoading || !apiMode}
                 >
                   Reload Series from API
+                </button>
+
+                <button
+                  className="details-toggle-button"
+                  type="button"
+                  onClick={disconnectFromApi}
+                >
+                  Switch to Local Mode
                 </button>
               </div>
 
