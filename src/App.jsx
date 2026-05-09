@@ -464,8 +464,10 @@ export default function App() {
   const [selectedSeriesId, setSelectedSeriesId] = useState(null);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.series, JSON.stringify(series));
-  }, [series]);
+    if (!apiMode) {
+      localStorage.setItem(STORAGE_KEYS.series, JSON.stringify(series));
+    }
+  }, [series, apiMode]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.filters, JSON.stringify(filters));
@@ -508,6 +510,32 @@ export default function App() {
     };
   }, [series]);
 
+  async function saveUpdatedSeries(
+    updatedSeries,
+    successMessage = "Series updated through backend API."
+  ) {
+    if (!apiMode) {
+      return normalizeSeriesItem(updatedSeries);
+    }
+
+    const savedSeries = await apiRequest(`/api/series/${updatedSeries.id}`, {
+      method: "PUT",
+      body: JSON.stringify(updatedSeries)
+    });
+
+    setApiStatus(successMessage);
+
+    return normalizeSeriesItem(savedSeries);
+  }
+
+  function replaceSeriesInState(updatedSeries) {
+    setSeries((current) =>
+      current.map((item) =>
+        item.id === updatedSeries.id ? normalizeSeriesItem(updatedSeries) : item
+      )
+    );
+  }
+
   async function deleteSeries(id) {
     try {
       if (apiMode) {
@@ -549,30 +577,62 @@ export default function App() {
     event.currentTarget.scrollLeft += event.deltaY;
   }
 
-  function toggleFavorite(id) {
-    setSeries((current) =>
-      current.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              isFavorite: !item.isFavorite
-            }
-          : item
-      )
-    );
+  async function toggleFavorite(id) {
+    const currentSeries = series.find((item) => item.id === id);
+
+    if (!currentSeries) {
+      return;
+    }
+
+    const updatedSeries = {
+      ...currentSeries,
+      isFavorite: !currentSeries.isFavorite
+    };
+
+    try {
+      if (apiMode) {
+        const savedSeries = await saveUpdatedSeries(
+          updatedSeries,
+          "Favorite updated through backend API."
+        );
+        replaceSeriesInState(savedSeries);
+        return;
+      }
+
+      replaceSeriesInState(updatedSeries);
+    } catch (error) {
+      setApiStatus(error.message);
+      alert(error.message);
+    }
   }
 
-  function changeRating(id, rating) {
-    setSeries((current) =>
-      current.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              rating: clampRating(rating)
-            }
-          : item
-      )
-    );
+  async function changeRating(id, rating) {
+    const currentSeries = series.find((item) => item.id === id);
+
+    if (!currentSeries) {
+      return;
+    }
+
+    const updatedSeries = {
+      ...currentSeries,
+      rating: clampRating(rating)
+    };
+
+    try {
+      if (apiMode) {
+        const savedSeries = await saveUpdatedSeries(
+          updatedSeries,
+          "Series rating updated through backend API."
+        );
+        replaceSeriesInState(savedSeries);
+        return;
+      }
+
+      replaceSeriesInState(updatedSeries);
+    } catch (error) {
+      setApiStatus(error.message);
+      alert(error.message);
+    }
   }
 
   function openSeriesDetails(id) {
@@ -652,7 +712,7 @@ export default function App() {
     return episodeForms[seriesId] || emptyEpisodeForm;
   }
 
-  function addEpisode(seriesId) {
+  async function addEpisode(seriesId) {
     const currentForm = getEpisodeForm(seriesId);
 
     if (!currentForm.title.trim()) {
@@ -670,76 +730,139 @@ export default function App() {
       createdAt: new Date().toISOString()
     };
 
-    setSeries((current) =>
-      current.map((item) =>
-        item.id === seriesId
-          ? {
-              ...item,
-              episodes: [newEpisode, ...(item.episodes || [])]
-            }
-          : item
-      )
-    );
+    const currentSeries = series.find((item) => item.id === seriesId);
 
-    setEpisodeForms((current) => ({
-      ...current,
-      [seriesId]: emptyEpisodeForm
-    }));
+    if (!currentSeries) {
+      return;
+    }
+
+    const updatedSeries = {
+      ...currentSeries,
+      episodes: [newEpisode, ...(currentSeries.episodes || [])]
+    };
+
+    try {
+      if (apiMode) {
+        const savedSeries = await saveUpdatedSeries(
+          updatedSeries,
+          "Episode added through backend API."
+        );
+        replaceSeriesInState(savedSeries);
+      } else {
+        replaceSeriesInState(updatedSeries);
+      }
+
+      setEpisodeForms((current) => ({
+        ...current,
+        [seriesId]: emptyEpisodeForm
+      }));
+    } catch (error) {
+      setApiStatus(error.message);
+      alert(error.message);
+    }
   }
 
-  function changeEpisodeRating(seriesId, episodeId, rating) {
-    setSeries((current) =>
-      current.map((item) =>
-        item.id === seriesId
+  async function changeEpisodeRating(seriesId, episodeId, rating) {
+    const currentSeries = series.find((item) => item.id === seriesId);
+
+    if (!currentSeries) {
+      return;
+    }
+
+    const updatedSeries = {
+      ...currentSeries,
+      episodes: (currentSeries.episodes || []).map((episode) =>
+        episode.id === episodeId
           ? {
-              ...item,
-              episodes: (item.episodes || []).map((episode) =>
-                episode.id === episodeId
-                  ? {
-                      ...episode,
-                      rating: clampRating(rating)
-                    }
-                  : episode
-              )
+              ...episode,
+              rating: clampRating(rating)
             }
-          : item
+          : episode
       )
-    );
+    };
+
+    try {
+      if (apiMode) {
+        const savedSeries = await saveUpdatedSeries(
+          updatedSeries,
+          "Episode rating updated through backend API."
+        );
+        replaceSeriesInState(savedSeries);
+        return;
+      }
+
+      replaceSeriesInState(updatedSeries);
+    } catch (error) {
+      setApiStatus(error.message);
+      alert(error.message);
+    }
   }
 
-  function toggleEpisodeWatched(seriesId, episodeId) {
-    setSeries((current) =>
-      current.map((item) =>
-        item.id === seriesId
+  async function toggleEpisodeWatched(seriesId, episodeId) {
+    const currentSeries = series.find((item) => item.id === seriesId);
+
+    if (!currentSeries) {
+      return;
+    }
+
+    const updatedSeries = {
+      ...currentSeries,
+      episodes: (currentSeries.episodes || []).map((episode) =>
+        episode.id === episodeId
           ? {
-              ...item,
-              episodes: (item.episodes || []).map((episode) =>
-                episode.id === episodeId
-                  ? {
-                      ...episode,
-                      watched: !episode.watched
-                    }
-                  : episode
-              )
+              ...episode,
+              watched: !episode.watched
             }
-          : item
+          : episode
       )
-    );
+    };
+
+    try {
+      if (apiMode) {
+        const savedSeries = await saveUpdatedSeries(
+          updatedSeries,
+          "Episode watch status updated through backend API."
+        );
+        replaceSeriesInState(savedSeries);
+        return;
+      }
+
+      replaceSeriesInState(updatedSeries);
+    } catch (error) {
+      setApiStatus(error.message);
+      alert(error.message);
+    }
   }
 
-  function deleteEpisode(seriesId, episodeId) {
-    setSeries((current) =>
-      current.map((item) =>
-        item.id === seriesId
-          ? {
-              ...item,
-              episodes: (item.episodes || []).filter(
-                (episode) => episode.id !== episodeId
-              )
-            }
-          : item
+  async function deleteEpisode(seriesId, episodeId) {
+    const currentSeries = series.find((item) => item.id === seriesId);
+
+    if (!currentSeries) {
+      return;
+    }
+
+    const updatedSeries = {
+      ...currentSeries,
+      episodes: (currentSeries.episodes || []).filter(
+        (episode) => episode.id !== episodeId
       )
-    );
+    };
+
+    try {
+      if (apiMode) {
+        const savedSeries = await saveUpdatedSeries(
+          updatedSeries,
+          "Episode deleted through backend API."
+        );
+        replaceSeriesInState(savedSeries);
+        return;
+      }
+
+      replaceSeriesInState(updatedSeries);
+    } catch (error) {
+      setApiStatus(error.message);
+      alert(error.message);
+    }
   }
 
   async function addSeries(event) {
