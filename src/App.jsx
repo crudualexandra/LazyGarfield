@@ -267,6 +267,39 @@ const emptyEpisodeForm = {
   rating: 3
 };
 
+function clampRating(value) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) {
+    return 3;
+  }
+
+  return Math.min(5, Math.max(1, number));
+}
+
+function renderStars(rating) {
+  const safeRating = clampRating(rating);
+  return "★".repeat(safeRating) + "☆".repeat(5 - safeRating);
+}
+
+function normalizeSeriesItem(item) {
+  return {
+    ...item,
+    genres: Array.isArray(item.genres)
+      ? item.genres
+      : item.genre
+        ? [item.genre]
+        : ["Drama"],
+    episodes: Array.isArray(item.episodes) ? item.episodes : [],
+    rating: clampRating(item.rating),
+    seasons: Number(item.seasons || 1),
+    isFavorite: Boolean(item.isFavorite),
+    description: item.description || "No description added yet.",
+    poster: item.poster || "🎬",
+    createdAt: item.createdAt || new Date().toISOString()
+  };
+}
+
 export default function App() {
   const [apiToken, setApiToken] = useState("");
   const [apiStatus, setApiStatus] = useState("");
@@ -360,7 +393,7 @@ export default function App() {
 
       const data = await apiRequest("/api/series?limit=100&skip=0");
 
-      setSeries(data.data || []);
+      setSeries((data.data || []).map(normalizeSeriesItem));
       setApiMode(true);
       setApiStatus(`Loaded ${data.data?.length || 0} series from backend API.`);
     } catch (error) {
@@ -384,18 +417,10 @@ export default function App() {
     if (saved) {
       const parsed = JSON.parse(saved);
 
-      return parsed.map((item) => ({
-        ...item,
-        genres: Array.isArray(item.genres)
-          ? item.genres
-          : item.genre
-            ? [item.genre]
-            : ["Drama"],
-        episodes: Array.isArray(item.episodes) ? item.episodes : []
-      }));
+      return parsed.map(normalizeSeriesItem);
     }
 
-    return demoSeries;
+    return demoSeries.map(normalizeSeriesItem);
   });
 
   const [filters, setFilters] = useState(() => {
@@ -510,7 +535,7 @@ export default function App() {
         item.id === id
           ? {
               ...item,
-              rating: Number(rating)
+              rating: clampRating(rating)
             }
           : item
       )
@@ -607,7 +632,7 @@ export default function App() {
       title: currentForm.title.trim(),
       season: Number(currentForm.season),
       episode: Number(currentForm.episode),
-      rating: Number(currentForm.rating),
+      rating: clampRating(currentForm.rating),
       watched: true,
       createdAt: new Date().toISOString()
     };
@@ -639,7 +664,7 @@ export default function App() {
                 episode.id === episodeId
                   ? {
                       ...episode,
-                      rating: Number(rating)
+                      rating: clampRating(rating)
                     }
                   : episode
               )
@@ -684,7 +709,7 @@ export default function App() {
     );
   }
 
-  function addSeries(event) {
+  async function addSeries(event) {
     event.preventDefault();
 
     if (!form.title.trim()) {
@@ -702,7 +727,7 @@ export default function App() {
       title: form.title.trim(),
       genres: form.genres,
       status: form.status,
-      rating: Number(form.rating),
+      rating: clampRating(form.rating),
       seasons: Number(form.seasons),
       description: form.description.trim() || "No description added yet.",
       poster: form.poster.trim() || "🎬",
@@ -710,6 +735,24 @@ export default function App() {
       isFavorite: false,
       createdAt: new Date().toISOString()
     };
+
+    if (apiMode) {
+      try {
+        const createdSeries = await apiRequest("/api/series", {
+          method: "POST",
+          body: JSON.stringify(newSeries)
+        });
+
+        setSeries((current) => [normalizeSeriesItem(createdSeries), ...current]);
+        setApiStatus("Series created through backend API.");
+        setForm(emptyForm);
+      } catch (error) {
+        setApiStatus(error.message);
+        alert(error.message);
+      }
+
+      return;
+    }
 
     setSeries((current) => [newSeries, ...current]);
     setForm(emptyForm);
@@ -852,7 +895,7 @@ export default function App() {
 
                         <div className="recommendation-meta">
                           <span>{item.genre}</span>
-                          <span>{"★".repeat(item.rating)}</span>
+                          <span>{renderStars(item.rating)}</span>
                         </div>
                       </div>
                     </div>
@@ -1010,8 +1053,7 @@ export default function App() {
 
                           <div className="compact-rating">
                             <span>
-                              {"★".repeat(item.rating)}
-                              {"☆".repeat(5 - item.rating)}
+                              {renderStars(item.rating)}
                             </span>
                             <strong>{item.rating}/5</strong>
                           </div>
@@ -1320,8 +1362,7 @@ export default function App() {
                 </label>
 
                 <div className="stars">
-                  {"★".repeat(selectedSeries.rating)}
-                  {"☆".repeat(5 - selectedSeries.rating)}
+                  {renderStars(selectedSeries.rating)}
                 </div>
               </div>
 
