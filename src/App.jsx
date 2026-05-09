@@ -9,6 +9,8 @@ const STORAGE_KEYS = {
   page: "lazygarfield_page"
 };
 
+const API_BASE_URL = "http://localhost:4000";
+
 const demoSeries = [
   {
     id: crypto.randomUUID(),
@@ -266,6 +268,92 @@ const emptyEpisodeForm = {
 };
 
 export default function App() {
+  const [apiToken, setApiToken] = useState("");
+  const [apiStatus, setApiStatus] = useState("");
+  const [isApiLoading, setIsApiLoading] = useState(false);
+  const [apiMode, setApiMode] = useState(false);
+
+  async function getApiToken() {
+    try {
+      setIsApiLoading(true);
+
+      const response = await fetch(`${API_BASE_URL}/token`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          role: "ADMIN",
+          permissions: ["READ", "WRITE", "DELETE"]
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Could not generate JWT token");
+      }
+
+      setApiToken(data.token);
+      setApiMode(true);
+      setApiStatus("Connected to backend API. Token expires in 1 minute.");
+
+      return data.token;
+    } catch (error) {
+      setApiStatus(error.message);
+      return "";
+    } finally {
+      setIsApiLoading(false);
+    }
+  }
+
+  async function getValidApiToken() {
+    if (apiToken) {
+      return apiToken;
+    }
+
+    return await getApiToken();
+  }
+
+  async function apiRequest(endpoint, options = {}) {
+    let token = await getValidApiToken();
+
+    if (!token) {
+      throw new Error("No API token available");
+    }
+
+    const makeRequest = async (jwtToken) => {
+      return fetch(`${API_BASE_URL}${endpoint}`, {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${jwtToken}`,
+          ...(options.headers || {})
+        }
+      });
+    };
+
+    let response = await makeRequest(token);
+    let data = await response.json().catch(() => ({}));
+
+    if (response.status === 401) {
+      const freshToken = await getApiToken();
+
+      if (!freshToken) {
+        throw new Error("Token expired and could not be refreshed");
+      }
+
+      response = await makeRequest(freshToken);
+      data = await response.json().catch(() => ({}));
+    }
+
+    if (!response.ok) {
+      throw new Error(data.message || "API request failed");
+    }
+
+    return data;
+  }
+
   const [series, setSeries] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.series);
 
