@@ -282,6 +282,22 @@ function renderStars(rating) {
   return "★".repeat(safeRating) + "☆".repeat(5 - safeRating);
 }
 
+function isImagePoster(value) {
+  if (!value || typeof value !== "string") {
+    return false;
+  }
+
+  return (
+    value.startsWith("/") ||
+    value.startsWith("http://") ||
+    value.startsWith("https://") ||
+    value.endsWith(".png") ||
+    value.endsWith(".jpg") ||
+    value.endsWith(".jpeg") ||
+    value.endsWith(".webp")
+  );
+}
+
 function normalizeSeriesItem(item) {
   return {
     ...item,
@@ -492,8 +508,25 @@ export default function App() {
     };
   }, [series]);
 
-  function deleteSeries(id) {
-    setSeries((current) => current.filter((item) => item.id !== id));
+  async function deleteSeries(id) {
+    try {
+      if (apiMode) {
+        await apiRequest(`/api/series/${id}`, {
+          method: "DELETE"
+        });
+
+        setApiStatus("Series deleted through backend API.");
+      }
+
+      setSeries((current) => current.filter((item) => item.id !== id));
+
+      if (selectedSeriesId === id) {
+        closeSeriesDetails();
+      }
+    } catch (error) {
+      setApiStatus(error.message);
+      alert(error.message);
+    }
   }
 
   function scrollRecommendations(direction) {
@@ -1017,7 +1050,7 @@ export default function App() {
                   {filteredSeries.map((item) => {
                     return (
                       <article className="series-card" key={item.id}>
-                        <div className="poster">{item.poster}</div>
+                        <PosterDisplay poster={item.poster} className="poster" />
 
                         <div className="card-content">
                           <div className="card-top">
@@ -1305,7 +1338,10 @@ export default function App() {
             >
               <div className="modal-header">
                 <div className="modal-title-row">
-                  <div className="modal-poster">{selectedSeries.poster}</div>
+                  <PosterDisplay
+                    poster={selectedSeries.poster}
+                    className="modal-poster"
+                  />
 
                   <div>
                     <p className="eyebrow">Series details</p>
@@ -1528,4 +1564,18 @@ function StatCard({ label, value }) {
       <span>{label}</span>
     </div>
   );
+}
+
+function PosterDisplay({ poster, className = "poster" }) {
+  const safePoster = poster || "🎬";
+
+  if (isImagePoster(safePoster)) {
+    return (
+      <div className={className}>
+        <img src={safePoster} alt="" />
+      </div>
+    );
+  }
+
+  return <div className={className}>{safePoster}</div>;
 }

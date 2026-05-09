@@ -18,7 +18,7 @@ let series = [
 		seasons: 3,
 		description:
 			"A mind-bending mystery where time travel connects four families across generations in a small German town.",
-		poster: "/posters/dark.jpg",
+		poster: "🕰️",
 		isFavorite: true,
 		createdAt: "2026-05-09T00:00:00.000Z",
 		episodes: [],
@@ -32,7 +32,7 @@ let series = [
 		seasons: 6,
 		description:
 			"A scandal blog fuels secrets and rivalries among privileged teens on Manhattan’s Upper East Side.",
-		poster: "/posters/gossip-girl.jpg",
+		poster: "💋",
 		isFavorite: false,
 		createdAt: "2026-05-09T00:00:00.000Z",
 		episodes: [],
@@ -46,7 +46,7 @@ let series = [
 		seasons: 6,
 		description:
 			"A historical drama following the reign of Queen Elizabeth II and the events that shaped modern Britain.",
-		poster: "/posters/the-crown.jpg",
+		poster: "👑",
 		isFavorite: false,
 		createdAt: "2026-05-09T00:00:00.000Z",
 		episodes: [],
@@ -60,7 +60,7 @@ let series = [
 		seasons: 1,
 		description:
 			"A chess prodigy rises to fame while battling addiction and the pressure of competition.",
-		poster: "/posters/the-queens-gambit.jpg",
+		poster: "♟️",
 		isFavorite: true,
 		createdAt: "2026-05-09T00:00:00.000Z",
 		episodes: [],
@@ -74,7 +74,7 @@ let series = [
 		seasons: 8,
 		description:
 			"Noble families clash for the Iron Throne as ancient threats awaken beyond the Wall.",
-		poster: "/posters/game-of-thrones.jpg",
+		poster: "🐉",
 		isFavorite: true,
 		createdAt: "2026-05-09T00:00:00.000Z",
 		episodes: [],
@@ -88,7 +88,7 @@ let series = [
 		seasons: 8,
 		description:
 			"A teen’s life changes when two vampire brothers return to a small town filled with supernatural secrets.",
-		poster: "/posters/the-vampire-diaries.jpg",
+		poster: "🩸",
 		isFavorite: false,
 		createdAt: "2026-05-09T00:00:00.000Z",
 		episodes: [],
@@ -102,7 +102,7 @@ let series = [
 		seasons: 4,
 		description:
 			"A modern take on Sherlock Holmes as he solves cases in London with Dr. Watson.",
-		poster: "/posters/sherlock.jpg",
+		poster: "🔎",
 		isFavorite: true,
 		createdAt: "2026-05-09T00:00:00.000Z",
 		episodes: [],
@@ -116,7 +116,7 @@ let series = [
 		seasons: 1,
 		description:
 			"A ruthless politician schemes for power in Washington, D.C. Watched only season 1.",
-		poster: "/posters/house-of-cards.jpg",
+		poster: "🏛️",
 		isFavorite: false,
 		createdAt: "2026-05-09T00:00:00.000Z",
 		episodes: [],
@@ -130,7 +130,7 @@ let series = [
 		seasons: 6,
 		description:
 			"An anthology series exploring the dark side of technology and modern society.",
-		poster: "/posters/black-mirror.jpg",
+		poster: "🪞",
 		isFavorite: true,
 		createdAt: "2026-05-09T00:00:00.000Z",
 		episodes: [],
