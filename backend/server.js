@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import jwt from "jsonwebtoken";
+import * as crypto from "node:crypto";
 
 const app = express();
 const PORT = 4000;
@@ -255,6 +256,75 @@ app.get(
 		}
 
 		res.status(200).json(found);
+	}
+);
+
+app.post(
+	"/api/series",
+	authenticateToken,
+	requirePermission("WRITE"),
+	(req, res) => {
+		if (!req.body?.title) {
+			return res.status(400).json({ message: "Title is required" });
+		}
+
+		const newSeries = {
+			id: crypto.randomUUID(),
+			title: req.body.title,
+			genres: req.body.genres || [],
+			status: req.body.status || "Plan to Watch",
+			rating: Number(req.body.rating || 3),
+			seasons: Number(req.body.seasons || 1),
+			description: req.body.description || "No description added yet.",
+			poster: req.body.poster || "🎬",
+			isFavorite: Boolean(req.body.isFavorite),
+			createdAt: new Date().toISOString(),
+			episodes: req.body.episodes || [],
+		};
+
+		series.unshift(newSeries);
+
+		res.status(201).json(newSeries);
+	}
+);
+
+app.put(
+	"/api/series/:id",
+	authenticateToken,
+	requirePermission("WRITE"),
+	(req, res) => {
+		const { id } = req.params;
+		const index = series.findIndex((s) => s.id === id);
+
+		if (index === -1) {
+			return res.status(404).json({ message: "Series not found" });
+		}
+
+		const updatedSeries = {
+			...series[index],
+			...req.body,
+			id: series[index].id,
+		};
+
+		series[index] = updatedSeries;
+		res.status(200).json(updatedSeries);
+	}
+);
+
+app.delete(
+	"/api/series/:id",
+	authenticateToken,
+	requirePermission("DELETE"),
+	(req, res) => {
+		const { id } = req.params;
+		const index = series.findIndex((s) => s.id === id);
+
+		if (index === -1) {
+			return res.status(404).json({ message: "Series not found" });
+		}
+
+		series.splice(index, 1);
+		res.status(200).json({ message: "Series deleted successfully" });
 	}
 );
 
