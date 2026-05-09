@@ -214,6 +214,50 @@ app.get(
 	}
 );
 
+app.get(
+	"/api/series",
+	authenticateToken,
+	requirePermission("READ"),
+	(req, res) => {
+		const limitRaw = req.query.limit;
+		const skipRaw = req.query.skip;
+
+		const limit =
+			limitRaw === undefined || Number.isNaN(Number(limitRaw))
+				? 10
+				: Number(limitRaw);
+		const skip =
+			skipRaw === undefined || Number.isNaN(Number(skipRaw))
+				? 0
+				: Number(skipRaw);
+
+		const paginatedSeries = series.slice(skip, skip + limit);
+
+		res.status(200).json({
+			total: series.length,
+			limit,
+			skip,
+			data: paginatedSeries,
+		});
+	}
+);
+
+app.get(
+	"/api/series/:id",
+	authenticateToken,
+	requirePermission("READ"),
+	(req, res) => {
+		const { id } = req.params;
+		const found = series.find((s) => s.id === id);
+
+		if (!found) {
+			return res.status(404).json({ message: "Series not found" });
+		}
+
+		res.status(200).json(found);
+	}
+);
+
 app.get("/api/public-series", (req, res) => {
 	res.status(200).json({
 		total: series.length,
