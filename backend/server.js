@@ -1,8 +1,10 @@
 import express from "express";
 import cors from "cors";
+import jwt from "jsonwebtoken";
 
 const app = express();
 const PORT = 4000;
+const JWT_SECRET = "lazygarfield_super_secret_demo_key";
 
 let series = [
 	{
@@ -140,6 +142,27 @@ app.get("/", (req, res) => {
 	res.status(200).json({
 		message: "LazyGarfield API is running",
 		documentation: `http://localhost:${PORT}/api-docs`,
+	});
+});
+
+app.post("/token", (req, res) => {
+	const role = req.body?.role ?? "VISITOR";
+	const permissions = req.body?.permissions ?? ["READ"];
+
+	const token = jwt.sign(
+		{
+			role,
+			permissions,
+		},
+		JWT_SECRET,
+		{ expiresIn: "1m" }
+	);
+
+	res.status(200).json({
+		token,
+		expiresIn: "1 minute",
+		role,
+		permissions,
 	});
 });
 
