@@ -768,7 +768,7 @@ export default function App() {
               <div className="section-title">
                 <div>
                   <p className="eyebrow">Search and filters</p>
-                  <h2>Find your next episode mood</h2>
+                  
                 </div>
               </div>
 
