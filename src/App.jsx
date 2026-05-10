@@ -326,6 +326,16 @@ export default function App() {
   });
   const [hasAutoLoadedApi, setHasAutoLoadedApi] = useState(false);
 
+  const [authToken, setAuthToken] = useState("");
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authMode, setAuthMode] = useState("login");
+  const [authMessage, setAuthMessage] = useState("");
+  const [authForm, setAuthForm] = useState({
+    name: "",
+    email: "",
+    password: ""
+  });
+
   async function getApiToken() {
     try {
       setIsApiLoading(true);
@@ -439,6 +449,94 @@ export default function App() {
     setHasAutoLoadedApi(false);
   }
 
+  function updateAuthForm(field, value) {
+    setAuthForm((current) => ({
+      ...current,
+      [field]: value
+    }));
+  }
+
+  async function loginUser(event) {
+    event.preventDefault();
+
+    try {
+      setAuthMessage("");
+
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          email: authForm.email,
+          password: authForm.password
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Login failed");
+      }
+
+      setAuthToken(data.token);
+      setApiToken(data.token);
+      setCurrentUser(data.user);
+      setApiMode(true);
+      setAuthMessage(`Logged in as ${data.user.name}`);
+      setApiStatus(`Authenticated as ${data.user.role}.`);
+      setActivePage("discover");
+    } catch (error) {
+      setAuthMessage(error.message);
+    }
+  }
+
+  async function registerUser(event) {
+    event.preventDefault();
+
+    try {
+      setAuthMessage("");
+
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          name: authForm.name,
+          email: authForm.email,
+          password: authForm.password
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Registration failed");
+      }
+
+      setAuthToken(data.token);
+      setApiToken(data.token);
+      setCurrentUser(data.user);
+      setApiMode(true);
+      setAuthMessage(`Account created for ${data.user.name}`);
+      setApiStatus(`Authenticated as ${data.user.role}.`);
+      setActivePage("discover");
+    } catch (error) {
+      setAuthMessage(error.message);
+    }
+  }
+
+  function logoutUser() {
+    setAuthToken("");
+    setApiToken("");
+    setCurrentUser(null);
+    setApiMode(false);
+    setAuthMessage("Logged out successfully.");
+    setApiStatus("Logged out. Local mode is available as fallback.");
+    setActivePage("auth");
+  }
+
   const [series, setSeries] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.series);
 
@@ -480,7 +578,7 @@ export default function App() {
   }, [apiMode]);
 
   useEffect(() => {
-    if (!apiMode || hasAutoLoadedApi) {
+    if (!apiMode || hasAutoLoadedApi || authToken) {
       return;
     }
 
@@ -507,7 +605,7 @@ export default function App() {
     }
 
     autoConnectToApi();
-  }, [apiMode, hasAutoLoadedApi]);
+  }, [apiMode, hasAutoLoadedApi, authToken]);
 
   useEffect(() => {
     if (!apiMode) {
@@ -1038,6 +1136,14 @@ export default function App() {
                 <span>📊</span>
                 Insights
               </button>
+
+              <button
+                className={activePage === "auth" ? "sidebar-link active" : "sidebar-link"}
+                onClick={() => setActivePage("auth")}
+              >
+                <span>👤</span>
+                Account
+              </button>
             </nav>
           </div>
         </aside>
@@ -1501,6 +1607,119 @@ export default function App() {
                 </p>
               )}
             </section>
+          </section>
+        )}
+
+        {activePage === "auth" && (
+          <section className="auth-section">
+            <div className="section-title">
+              <p className="eyebrow">Account</p>
+              <h2>
+                {currentUser
+                  ? "Your profile"
+                  : authMode === "login"
+                    ? "Login"
+                    : "Create account"}
+              </h2>
+              <p className="insights-description">
+                Login to save series to your personal LazyGarfield library.
+              </p>
+            </div>
+
+            {currentUser ? (
+              <div className="auth-profile-card">
+                <h3>{currentUser.name}</h3>
+                <p>{currentUser.email}</p>
+                <p>Role: {currentUser.role}</p>
+
+                <button className="delete-button" type="button" onClick={logoutUser}>
+                  Logout
+                </button>
+              </div>
+            ) : (
+              <form
+                className="auth-form"
+                onSubmit={authMode === "login" ? loginUser : registerUser}
+              >
+                {authMode === "register" && (
+                  <label>
+                    Name
+                    <input
+                      type="text"
+                      value={authForm.name}
+                      onChange={(event) => updateAuthForm("name", event.target.value)}
+                      placeholder="Your name"
+                    />
+                  </label>
+                )}
+
+                <label>
+                  Email
+                  <input
+                    type="email"
+                    value={authForm.email}
+                    onChange={(event) => updateAuthForm("email", event.target.value)}
+                    placeholder="you@example.com"
+                  />
+                </label>
+
+                <label>
+                  Password
+                  <input
+                    type="password"
+                    value={authForm.password}
+                    onChange={(event) => updateAuthForm("password", event.target.value)}
+                    placeholder="At least 6 characters"
+                  />
+                </label>
+
+                <button className="submit-button" type="submit">
+                  {authMode === "login" ? "Login" : "Register"}
+                </button>
+
+                <button
+                  className="details-toggle-button"
+                  type="button"
+                  onClick={() =>
+                    setAuthMode((current) => (current === "login" ? "register" : "login"))
+                  }
+                >
+                  {authMode === "login"
+                    ? "Need an account? Register"
+                    : "Already have an account? Login"}
+                </button>
+
+                <button
+                  className="details-toggle-button"
+                  type="button"
+                  onClick={() => {
+                    setAuthForm({
+                      name: "",
+                      email: "user@lazygarfield.local",
+                      password: "user123"
+                    });
+                  }}
+                >
+                  Use Demo User
+                </button>
+
+                <button
+                  className="details-toggle-button"
+                  type="button"
+                  onClick={() => {
+                    setAuthForm({
+                      name: "",
+                      email: "admin@lazygarfield.local",
+                      password: "admin123"
+                    });
+                  }}
+                >
+                  Use Demo Admin
+                </button>
+              </form>
+            )}
+
+            {authMessage && <p className="api-message">{authMessage}</p>}
           </section>
         )}
 

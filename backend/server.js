@@ -4,11 +4,61 @@ import jwt from "jsonwebtoken";
 import swaggerUi from "swagger-ui-express";
 import * as crypto from "node:crypto";
 import bcrypt from "bcryptjs";
-import { db, deserializeUser, serializeSeries, deserializeSeries } from "./db.js";
+import {
+	db,
+	deserializeUser,
+	serializeSeries,
+	deserializeSeries,
+	serializeUserLibraryItem,
+	deserializeUserLibraryItem,
+} from "./db.js";
 
 const app = express();
 const PORT = 4000;
 const JWT_SECRET = "lazygarfield_super_secret_demo_key";
+// For the official Lab 7 demo, set JWT_EXPIRES_IN=1m.
+// During development, the default is 30m to avoid constant re-login.
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "30m";
+const TVMAZE_API_BASE_URL = "https://api.tvmaze.com";
+
+function stripHtml(value) {
+	if (!value) {
+		return "";
+	}
+
+	return String(value).replace(/<[^>]*>/g, "").trim();
+}
+
+function mapTvmazeShow(show) {
+	return {
+		tvmazeId: show.id,
+		title: show.name || "Untitled Series",
+		genres: Array.isArray(show.genres) ? show.genres : [],
+		status: show.status || "Unknown",
+		rating: show.rating?.average ? Math.round(show.rating.average / 2) : 3,
+		seasons: 1,
+		description: stripHtml(show.summary) || "No description available.",
+		poster: show.image?.medium || show.image?.original || "🎬",
+		officialSite: show.officialSite || "",
+		premiered: show.premiered || "",
+		ended: show.ended || "",
+		language: show.language || "",
+		network: show.network?.name || show.webChannel?.name || "",
+		runtime: show.runtime || show.averageRuntime || null,
+	};
+}
+
+function mapTvmazeEpisode(episode) {
+	return {
+		tvmazeEpisodeId: episode.id,
+		title: episode.name || `Episode ${episode.number || ""}`,
+		season: episode.season || 1,
+		episode: episode.number || 1,
+		airdate: episode.airdate || "",
+		runtime: episode.runtime || null,
+		summary: stripHtml(episode.summary) || "",
+	};
+}
 
 app.use(cors());
 app.use(express.json());
@@ -49,6 +99,14 @@ function requirePermission(permission) {
 	};
 }
 
+function requireAuthUser(req, res, next) {
+	if (!req.user?.userId) {
+		return res.status(401).json({ message: "User authentication is required" });
+	}
+
+	next();
+}
+
 function createAuthToken(user) {
 	return jwt.sign(
 		{
@@ -57,7 +115,7 @@ function createAuthToken(user) {
 			role: user.role,
 		},
 		JWT_SECRET,
-		{ expiresIn: "1m" }
+		{ expiresIn: JWT_EXPIRES_IN }
 	);
 }
 
@@ -476,15 +534,272 @@ app.post("/token", (req, res) => {
 			permissions,
 		},
 		JWT_SECRET,
-		{ expiresIn: "1m" }
+		{ expiresIn: JWT_EXPIRES_IN }
 	);
 
 	res.status(200).json({
 		token,
-		expiresIn: "1 minute",
+		expiresIn: JWT_EXPIRES_IN,
 		role,
 		permissions,
 	});
+});
+
+app.get("/api/my-library", authenticateToken, requireAuthUser, (req, res) => {
+	const userId = req.user.userId;
+
+	const rows = db
+		.prepare(
+			"SELECT * FROM user_library WHERE userId = ? ORDER BY createdAt DESC"
+		)
+		.all(userId);
+
+	const data = rows.map(deserializeUserLibraryItem);
+
+	res.status(200).json({
+		total: data.length,
+		data,
+	});
+});
+
+app.post("/api/my-library", authenticateToken, requireAuthUser, (req, res) => {
+	const userId = req.user.userId;
+	const tvmazeIdRaw = req.body?.tvmazeId;
+	const title = req.body?.title;
+
+	if (!tvmazeIdRaw || !title) {
+		return res.status(400).json({ message: "TVmaze id and title are required" });
+	}
+
+	const tvmazeId = Number(tvmazeIdRaw);
+
+	const existing = db
+		.prepare("SELECT * FROM user_library WHERE userId = ? AND tvmazeId = ?")
+		.get(userId, tvmazeId);
+
+	if (existing) {
+		return res.status(409).json({ message: "Series already exists in your library" });
+	}
+
+	const newItem = {
+		id: crypto.randomUUID(),
+		userId,
+		tvmazeId,
+		title,
+		genres: req.body.genres || [],
+		status: req.body.status || "Plan to Watch",
+		rating: Number(req.body.rating || 3),
+		seasons: Number(req.body.seasons || 1),
+		description: req.body.description || "No description available.",
+		poster: req.body.poster || "🎬",
+		isFavorite: Boolean(req.body.isFavorite),
+		createdAt: new Date().toISOString(),
+	};
+
+	try {
+		db.prepare(
+			`
+				INSERT INTO user_library (
+					id,
+					userId,
+					tvmazeId,
+					title,
+					genres,
+					status,
+					rating,
+					seasons,
+					description,
+					poster,
+					isFavorite,
+					createdAt
+				) VALUES (
+					@id,
+					@userId,
+					@tvmazeId,
+					@title,
+					@genres,
+					@status,
+					@rating,
+					@seasons,
+					@description,
+					@poster,
+					@isFavorite,
+					@createdAt
+				)
+			`
+		).run(serializeUserLibraryItem(newItem));
+	} catch (error) {
+		if (error?.code === "SQLITE_CONSTRAINT_UNIQUE") {
+			return res
+				.status(409)
+				.json({ message: "Series already exists in your library" });
+		}
+
+		return res.status(500).json({ message: "Internal server error" });
+	}
+
+	res.status(201).json(newItem);
+});
+
+app.put("/api/my-library/:id", authenticateToken, requireAuthUser, (req, res) => {
+	const userId = req.user.userId;
+	const { id } = req.params;
+
+	const row = db
+		.prepare("SELECT * FROM user_library WHERE id = ? AND userId = ?")
+		.get(id, userId);
+
+	if (!row) {
+		return res.status(404).json({ message: "Library item not found" });
+	}
+
+	const existingItem = deserializeUserLibraryItem(row);
+
+	const updatedItem = {
+		...existingItem,
+		...req.body,
+		id: existingItem.id,
+		userId: existingItem.userId,
+		tvmazeId: existingItem.tvmazeId,
+		genres: req.body.genres ?? existingItem.genres,
+		rating: Number(req.body.rating ?? existingItem.rating ?? 3),
+		seasons: Number(req.body.seasons ?? existingItem.seasons ?? 1),
+		isFavorite: Boolean(req.body.isFavorite ?? existingItem.isFavorite),
+	};
+
+	db.prepare(
+		`
+			UPDATE user_library SET
+				title = @title,
+				genres = @genres,
+				status = @status,
+				rating = @rating,
+				seasons = @seasons,
+				description = @description,
+				poster = @poster,
+				isFavorite = @isFavorite,
+				createdAt = @createdAt
+			WHERE id = @id AND userId = @userId
+		`
+	).run(serializeUserLibraryItem(updatedItem));
+
+	res.status(200).json(updatedItem);
+});
+
+app.delete(
+	"/api/my-library/:id",
+	authenticateToken,
+	requireAuthUser,
+	(req, res) => {
+		const userId = req.user.userId;
+		const { id } = req.params;
+
+		const row = db
+			.prepare("SELECT * FROM user_library WHERE id = ? AND userId = ?")
+			.get(id, userId);
+
+		if (!row) {
+			return res.status(404).json({ message: "Library item not found" });
+		}
+
+		const existingItem = deserializeUserLibraryItem(row);
+
+		db.prepare("DELETE FROM user_library WHERE id = ? AND userId = ?").run(
+			id,
+			userId
+		);
+
+		db.prepare("DELETE FROM episode_ratings WHERE userId = ? AND tvmazeId = ?").run(
+			userId,
+			existingItem.tvmazeId
+		);
+
+		res.status(200).json({ message: "Series removed from your library" });
+	}
+);
+
+app.get("/api/discover/search", async (req, res) => {
+	const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+
+	if (!q) {
+		return res.status(400).json({ message: "Search query is required" });
+	}
+
+	try {
+		const response = await fetch(
+			`${TVMAZE_API_BASE_URL}/search/shows?q=${encodeURIComponent(q)}`
+		);
+
+		if (!response.ok) {
+			return res.status(502).json({ message: "Could not fetch shows from TVmaze" });
+		}
+
+		const raw = await response.json();
+		const mappedShows = (Array.isArray(raw) ? raw : [])
+			.map((item) => item?.show)
+			.filter(Boolean)
+			.map(mapTvmazeShow);
+
+		res.status(200).json({
+			query: q,
+			total: mappedShows.length,
+			data: mappedShows,
+		});
+	} catch {
+		res.status(500).json({ message: "Internal server error" });
+	}
+});
+
+app.get("/api/discover/shows/:tvmazeId", async (req, res) => {
+	const { tvmazeId } = req.params;
+
+	try {
+		const response = await fetch(`${TVMAZE_API_BASE_URL}/shows/${tvmazeId}`);
+
+		if (response.status === 404) {
+			return res.status(404).json({ message: "Show not found" });
+		}
+
+		if (!response.ok) {
+			return res.status(502).json({ message: "Could not fetch show from TVmaze" });
+		}
+
+		const show = await response.json();
+		res.status(200).json(mapTvmazeShow(show));
+	} catch {
+		res.status(500).json({ message: "Internal server error" });
+	}
+});
+
+app.get("/api/discover/shows/:tvmazeId/episodes", async (req, res) => {
+	const { tvmazeId } = req.params;
+
+	try {
+		const response = await fetch(
+			`${TVMAZE_API_BASE_URL}/shows/${tvmazeId}/episodes`
+		);
+
+		if (response.status === 404) {
+			return res.status(404).json({ message: "Show episodes not found" });
+		}
+
+		if (!response.ok) {
+			return res
+				.status(502)
+				.json({ message: "Could not fetch episodes from TVmaze" });
+		}
+
+		const raw = await response.json();
+		const mappedEpisodes = (Array.isArray(raw) ? raw : []).map(mapTvmazeEpisode);
+
+		res.status(200).json({
+			tvmazeId: Number(tvmazeId),
+			total: mappedEpisodes.length,
+			data: mappedEpisodes,
+		});
+	} catch {
+		res.status(500).json({ message: "Internal server error" });
+	}
 });
 
 app.post("/auth/register", async (req, res) => {
@@ -559,6 +874,7 @@ app.post("/auth/register", async (req, res) => {
 
 	res.status(201).json({
 		token,
+		expiresIn: JWT_EXPIRES_IN,
 		user: {
 			id: user.id,
 			name: user.name,
@@ -609,6 +925,7 @@ app.post("/auth/login", async (req, res) => {
 
 	res.status(200).json({
 		token,
+		expiresIn: JWT_EXPIRES_IN,
 		user: {
 			id: user.id,
 			name: user.name,
