@@ -552,11 +552,25 @@ app.get("/api/my-library", authenticateToken, requireAuthUser, (req, res) => {
 
 	const rows = db
 		.prepare(
-			"SELECT * FROM user_library WHERE userId = ? ORDER BY createdAt DESC"
+			`
+				SELECT
+					user_library.*,
+					COUNT(episode_ratings.id) AS ratedEpisodesCount
+				FROM user_library
+				LEFT JOIN episode_ratings
+					ON episode_ratings.userId = user_library.userId
+					AND episode_ratings.tvmazeId = user_library.tvmazeId
+				WHERE user_library.userId = ?
+				GROUP BY user_library.id
+				ORDER BY user_library.createdAt DESC
+			`
 		)
 		.all(userId);
 
-	const data = rows.map(deserializeUserLibraryItem);
+	const data = rows.map((row) => ({
+		...deserializeUserLibraryItem(row),
+		ratedEpisodesCount: Number(row.ratedEpisodesCount || 0),
+	}));
 
 	res.status(200).json({
 		total: data.length,
