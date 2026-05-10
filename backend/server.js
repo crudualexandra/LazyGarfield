@@ -11,6 +11,8 @@ import {
 	deserializeSeries,
 	serializeUserLibraryItem,
 	deserializeUserLibraryItem,
+	serializeEpisodeRating,
+	deserializeEpisodeRating,
 } from "./db.js";
 
 const app = express();
@@ -715,6 +717,214 @@ app.delete(
 		);
 
 		res.status(200).json({ message: "Series removed from your library" });
+	}
+);
+
+app.get(
+	"/api/my-library/:tvmazeId/episode-ratings",
+	authenticateToken,
+	requireAuthUser,
+	(req, res) => {
+		const userId = req.user.userId;
+		const tvmazeId = Number(req.params.tvmazeId);
+
+		const rows = db
+			.prepare(
+				`
+					SELECT *
+					FROM episode_ratings
+					WHERE userId = ? AND tvmazeId = ?
+					ORDER BY season ASC, episode ASC
+				`
+			)
+			.all(userId, tvmazeId);
+
+		const data = rows.map(deserializeEpisodeRating);
+
+		res.status(200).json({
+			total: data.length,
+			data,
+		});
+	}
+);
+
+app.post(
+	"/api/episode-ratings",
+	authenticateToken,
+	requireAuthUser,
+	(req, res) => {
+		const userId = req.user.userId;
+		const tvmazeIdRaw = req.body?.tvmazeId;
+		const episodeTitle = req.body?.episodeTitle;
+		const seasonRaw = req.body?.season;
+		const episodeRaw = req.body?.episode;
+
+		if (!tvmazeIdRaw || !episodeTitle || seasonRaw === undefined || episodeRaw === undefined) {
+			return res.status(400).json({
+				message:
+					"TVmaze id, episode title, season, and episode number are required",
+			});
+		}
+
+		const tvmazeId = Number(tvmazeIdRaw);
+		const season = Number(seasonRaw);
+		const episode = Number(episodeRaw);
+
+		const libraryRow = db
+			.prepare("SELECT id FROM user_library WHERE userId = ? AND tvmazeId = ?")
+			.get(userId, tvmazeId);
+
+		if (!libraryRow) {
+			return res.status(404).json({
+				message: "Add this series to your library before rating episodes",
+			});
+		}
+
+		const existingRow = db
+			.prepare(
+				`
+					SELECT *
+					FROM episode_ratings
+					WHERE userId = ? AND tvmazeId = ? AND season = ? AND episode = ?
+				`
+			)
+			.get(userId, tvmazeId, season, episode);
+
+		if (existingRow) {
+			const existingRating = deserializeEpisodeRating(existingRow);
+			const updatedRating = {
+				...existingRating,
+				episodeTitle,
+				rating: Number(req.body?.rating || 3),
+				watched: Boolean(req.body?.watched),
+			};
+
+			db.prepare(
+				`
+					UPDATE episode_ratings SET
+						episodeTitle = @episodeTitle,
+						rating = @rating,
+						watched = @watched
+					WHERE id = @id AND userId = @userId
+				`
+			).run(serializeEpisodeRating(updatedRating));
+
+			return res.status(200).json(updatedRating);
+		}
+
+		const createdRating = {
+			id: crypto.randomUUID(),
+			userId,
+			tvmazeId,
+			episodeTitle,
+			season,
+			episode,
+			rating: Number(req.body?.rating || 3),
+			watched: Boolean(req.body?.watched),
+			createdAt: new Date().toISOString(),
+		};
+
+		db.prepare(
+			`
+				INSERT INTO episode_ratings (
+					id,
+					userId,
+					tvmazeId,
+					episodeTitle,
+					season,
+					episode,
+					rating,
+					watched,
+					createdAt
+				) VALUES (
+					@id,
+					@userId,
+					@tvmazeId,
+					@episodeTitle,
+					@season,
+					@episode,
+					@rating,
+					@watched,
+					@createdAt
+				)
+			`
+		).run(serializeEpisodeRating(createdRating));
+
+		res.status(201).json(createdRating);
+	}
+);
+
+app.put(
+	"/api/episode-ratings/:id",
+	authenticateToken,
+	requireAuthUser,
+	(req, res) => {
+		const userId = req.user.userId;
+		const { id } = req.params;
+
+		const row = db
+			.prepare("SELECT * FROM episode_ratings WHERE id = ? AND userId = ?")
+			.get(id, userId);
+
+		if (!row) {
+			return res.status(404).json({ message: "Episode rating not found" });
+		}
+
+		const existingRating = deserializeEpisodeRating(row);
+
+		const updatedRating = {
+			...existingRating,
+			...req.body,
+			id: existingRating.id,
+			userId: existingRating.userId,
+			tvmazeId: existingRating.tvmazeId,
+			episodeTitle: req.body?.episodeTitle ?? existingRating.episodeTitle,
+			season: Number(req.body?.season ?? existingRating.season),
+			episode: Number(req.body?.episode ?? existingRating.episode),
+			rating: Number(req.body?.rating ?? existingRating.rating),
+			watched: Boolean(req.body?.watched ?? existingRating.watched),
+			createdAt: req.body?.createdAt ?? existingRating.createdAt,
+		};
+
+		db.prepare(
+			`
+				UPDATE episode_ratings SET
+					episodeTitle = @episodeTitle,
+					season = @season,
+					episode = @episode,
+					rating = @rating,
+					watched = @watched,
+					createdAt = @createdAt
+				WHERE id = @id AND userId = @userId
+			`
+		).run(serializeEpisodeRating(updatedRating));
+
+		res.status(200).json(updatedRating);
+	}
+);
+
+app.delete(
+	"/api/episode-ratings/:id",
+	authenticateToken,
+	requireAuthUser,
+	(req, res) => {
+		const userId = req.user.userId;
+		const { id } = req.params;
+
+		const row = db
+			.prepare("SELECT * FROM episode_ratings WHERE id = ? AND userId = ?")
+			.get(id, userId);
+
+		if (!row) {
+			return res.status(404).json({ message: "Episode rating not found" });
+		}
+
+		db.prepare("DELETE FROM episode_ratings WHERE id = ? AND userId = ?").run(
+			id,
+			userId
+		);
+
+		res.status(200).json({ message: "Episode rating deleted successfully" });
 	}
 );
 
