@@ -14,6 +14,17 @@ const STORAGE_KEYS = {
 
 const API_BASE_URL = "http://localhost:4000";
 
+const RECOMMENDED_SEARCHES = [
+  "Severance",
+  "The Last of Us",
+  "House of the Dragon",
+  "The Bear",
+  "Stranger Things",
+  "The Crown",
+  "Dark",
+  "Sherlock"
+];
+
 const demoSeries = [
   {
     id: crypto.randomUUID(),
@@ -185,50 +196,8 @@ const demoSeries = [
   }
 ];
 
-const recommendedSeries = [
-  {
-    id: "rec-1",
-    title: "Severance",
-    genre: "Sci-Fi",
-    rating: 5,
-    poster: "🏢",
-    note: "Mind-bending mystery"
-  },
-  {
-    id: "rec-2",
-    title: "The Last of Us",
-    genre: "Drama",
-    rating: 5,
-    poster: "🌿",
-    note: "Emotional survival story"
-  },
-  {
-    id: "rec-3",
-    title: "Sherlock",
-    genre: "Thriller",
-    rating: 4,
-    poster: "🔎",
-    note: "Smart detective series"
-  },
-  {
-    id: "rec-4",
-    title: "House of the Dragon",
-    genre: "Fantasy",
-    rating: 4,
-    poster: "🐉",
-    note: "Epic fantasy drama"
-  },
-  {
-    id: "rec-5",
-    title: "Stranger Things",
-    genre: "Sci-Fi",
-    rating: 4,
-    poster: "🚲",
-    note: "Retro supernatural adventure"
-  }
-];
-
-const statuses = ["Watching", "Completed", "Plan to Watch", "Dropped"];
+const STATUS_OPTIONS = ["Plan to Watch", "Watching", "Completed", "Dropped"];
+const statuses = STATUS_OPTIONS;
 
 const genres = [
   "Drama",
@@ -351,12 +320,16 @@ export default function App() {
   const [discoverResults, setDiscoverResults] = useState([]);
   const [discoverMessage, setDiscoverMessage] = useState("");
   const [isDiscoverLoading, setIsDiscoverLoading] = useState(false);
+  const [discoverStatusById, setDiscoverStatusById] = useState({});
   const [libraryMessage, setLibraryMessage] = useState("");
   const [myLibraryMessage, setMyLibraryMessage] = useState("");
   const [isMyLibraryLoading, setIsMyLibraryLoading] = useState(false);
   const [publicReviews, setPublicReviews] = useState([]);
   const [publicReviewsMessage, setPublicReviewsMessage] = useState("");
   const [isPublicReviewsLoading, setIsPublicReviewsLoading] = useState(false);
+  const [recommendedShows, setRecommendedShows] = useState([]);
+  const [recommendationsMessage, setRecommendationsMessage] = useState("");
+  const [isRecommendationsLoading, setIsRecommendationsLoading] = useState(false);
 
   async function getApiToken() {
     try {
@@ -393,8 +366,10 @@ export default function App() {
   }
 
   async function getValidApiToken() {
-    if (apiToken) {
-      return apiToken;
+    const token = apiToken || authToken;
+
+    if (token) {
+      return token;
     }
 
     return await getApiToken();
@@ -404,7 +379,7 @@ export default function App() {
     let token = await getValidApiToken();
 
     if (!token) {
-      throw new Error("No API token available");
+      throw new Error("User authentication is required");
     }
 
     const makeRequest = async (jwtToken) => {
@@ -422,6 +397,10 @@ export default function App() {
     let data = await response.json().catch(() => ({}));
 
     if (response.status === 401) {
+      if (authToken) {
+        throw new Error(data.message || "User authentication is required");
+      }
+
       const freshToken = await getApiToken();
 
       if (!freshToken) {
@@ -642,12 +621,66 @@ export default function App() {
     }
   }
 
+  async function loadRecommendedShows() {
+    try {
+      setIsRecommendationsLoading(true);
+      setRecommendationsMessage("");
+
+      const seen = new Set();
+      const uniqueShows = [];
+
+      for (const query of RECOMMENDED_SEARCHES) {
+        const response = await fetch(
+          `${API_BASE_URL}/api/discover/search?q=${encodeURIComponent(query)}`
+        );
+        const data = await response.json();
+
+        if (!response.ok) {
+          continue;
+        }
+
+        const results = data.data || [];
+        const pick =
+          results.find((s) => s.poster && String(s.poster).startsWith("http")) ||
+          results[0];
+
+        if (!pick || pick.tvmazeId == null) {
+          continue;
+        }
+
+        const id = Number(pick.tvmazeId);
+        if (seen.has(id)) {
+          continue;
+        }
+
+        seen.add(id);
+        uniqueShows.push(pick);
+      }
+
+      setRecommendedShows(uniqueShows);
+      setRecommendationsMessage(
+        `Loaded ${uniqueShows.length} TVmaze recommendations.`
+      );
+    } catch (error) {
+      setRecommendationsMessage(error.message);
+    } finally {
+      setIsRecommendationsLoading(false);
+    }
+  }
+
   function openDiscoverDetails(tvmazeId) {
     const show = discoverResults.find((item) => item.tvmazeId === tvmazeId);
 
     if (show) {
       alert(`${show.title}\n\n${show.description}`);
     }
+  }
+
+  function updateDiscoverStatus(tvmazeId, status) {
+    setDiscoverStatusById((current) => ({
+      ...current,
+      [tvmazeId]: status
+    }));
   }
 
   async function getSeasonCountFromTvmaze(tvmazeId) {
@@ -689,7 +722,7 @@ export default function App() {
           tvmazeId: show.tvmazeId,
           title: show.title,
           genres: show.genres || [],
-          status: "Plan to Watch",
+          status: discoverStatusById[show.tvmazeId] || "Plan to Watch",
           rating: show.rating || 3,
           seasons: seasonCount,
           description: show.description || "No description available.",
@@ -770,11 +803,11 @@ export default function App() {
   }, [currentUser]);
 
   useEffect(() => {
-    if (authToken && !apiToken) {
+    if (authToken) {
       setApiToken(authToken);
       setApiMode(true);
     }
-  }, [authToken, apiToken]);
+  }, [authToken]);
 
   useEffect(() => {
     if (!authToken || !currentUser) {
@@ -838,6 +871,17 @@ export default function App() {
   }, [visiblePage, authToken, currentUser]);
 
   useEffect(() => {
+    if (
+      activePage === "dashboard" &&
+      authToken &&
+      currentUser &&
+      recommendedShows.length === 0
+    ) {
+      loadRecommendedShows();
+    }
+  }, [activePage, authToken, currentUser]);
+
+  useEffect(() => {
     if (!apiMode || hasAutoLoadedApi || authToken) {
       return;
     }
@@ -890,7 +934,7 @@ export default function App() {
     const favorites = series.filter((item) => item.isFavorite).length;
     const completed = series.filter((item) => item.status === "Completed").length;
     const totalEpisodes = series.reduce(
-      (sum, item) => sum + (item.episodes?.length || 0),
+      (sum, item) => sum + Number(item.ratedEpisodesCount || 0),
       0
     );
 
@@ -951,6 +995,19 @@ export default function App() {
     );
   }
 
+  async function handleLibraryStatusChange(item, nextStatus) {
+    try {
+      const savedSeries = await saveUpdatedSeries(
+        { ...item, status: nextStatus },
+        "Status updated through backend API."
+      );
+      replaceSeriesInState(savedSeries);
+    } catch (error) {
+      setApiStatus(error.message);
+      alert(error.message);
+    }
+  }
+
   async function deleteSeries(id) {
     try {
       if (isAuthenticated) {
@@ -976,26 +1033,6 @@ export default function App() {
       setApiStatus(error.message);
       alert(error.message);
     }
-  }
-
-  function scrollRecommendations(direction) {
-    const container = document.querySelector(".recommendations-scroll");
-
-    if (!container) {
-      return;
-    }
-
-    const scrollAmount = direction === "left" ? -240 : 240;
-
-    container.scrollBy({
-      left: scrollAmount,
-      behavior: "smooth"
-    });
-  }
-
-  function handleRecommendationWheel(event) {
-    event.preventDefault();
-    event.currentTarget.scrollLeft += event.deltaY;
   }
 
   async function toggleFavorite(id) {
@@ -1816,6 +1853,22 @@ export default function App() {
                         <strong>{show.rating}/5</strong>
                       </div>
 
+                      <label>
+                        Save as
+                        <select
+                          value={discoverStatusById[show.tvmazeId] || "Plan to Watch"}
+                          onChange={(event) =>
+                            updateDiscoverStatus(show.tvmazeId, event.target.value)
+                          }
+                        >
+                          {STATUS_OPTIONS.map((status) => (
+                            <option key={status} value={status}>
+                              {status}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
                       <button
                         type="button"
                         className="details-toggle-button"
@@ -1846,69 +1899,102 @@ export default function App() {
                 <span className="hero-badge">TV Series Personal Journal</span>
                 <h2>Your cinematic watchlist, organized in one place.</h2>
                 <p>
-                  LazyGarfield is a client-side only React app where users can manage
-                  series, filter by status or genre, rate shows, mark favorites, rate
-                  individual episodes, and keep everything saved locally in the
-                  browser.
+                  LazyGarfield helps you discover real TV series, save them to your
+                  personal library, rate episodes, and share public reviews.
                 </p>
               </div>
+            </section>
 
-              <div className="hero-panel recommendations-panel">
-                <div className="recommendations-header">
-                  <div>
-                    <p className="eyebrow">Popular Now</p>
-                    <h3>Recommended Series</h3>
-                  </div>
-
-                  <div className="recommendation-arrows">
-                    <button
-                      type="button"
-                      onClick={() => scrollRecommendations("left")}
-                      aria-label="Scroll recommendations left"
-                    >
-                      ←
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => scrollRecommendations("right")}
-                      aria-label="Scroll recommendations right"
-                    >
-                      →
-                    </button>
-                  </div>
+            <section className="dashboard-recommendations">
+              <div className="section-title row-title">
+                <div>
+                  <p className="eyebrow">Popular Now</p>
+                  <h2>Recommended Series</h2>
+                  <p className="insights-description">
+                    Real TVmaze series suggestions you can discover and add to your
+                    personal library.
+                  </p>
                 </div>
 
-                <div
-                  className="recommendations-scroll"
-                  onWheel={handleRecommendationWheel}
+                <button
+                  type="button"
+                  className="details-toggle-button"
+                  onClick={loadRecommendedShows}
+                  disabled={isRecommendationsLoading}
                 >
-                  {recommendedSeries.map((item) => (
-                    <div className="recommendation-card" key={item.id}>
-                      <div className="recommendation-poster">{item.poster}</div>
+                  {isRecommendationsLoading ? "Loading..." : "Refresh"}
+                </button>
+              </div>
 
-                      <div className="recommendation-info">
-                        <h4>{item.title}</h4>
-                        <p>{item.note}</p>
+              {recommendationsMessage && (
+                <p className="api-message">{recommendationsMessage}</p>
+              )}
 
-                        <div className="recommendation-meta">
-                          <span>{item.genre}</span>
-                          <span>{renderStars(item.rating)}</span>
-                        </div>
+              {recommendedShows.length === 0 ? (
+                <div className="empty-state">
+                  <div>📺</div>
+                  <h3>No recommendations loaded yet</h3>
+                  <p>Refresh to load TVmaze recommendations.</p>
+                </div>
+              ) : (
+                <div className="recommendation-showcase">
+                  {recommendedShows.map((show) => (
+                    <article
+                      className="recommendation-feature-card"
+                      key={show.tvmazeId}
+                    >
+                      <div className="recommendation-feature-poster">
+                        {show.poster && show.poster.startsWith("http") ? (
+                          <img src={show.poster} alt={show.title} />
+                        ) : (
+                          <span>{show.poster || "🎬"}</span>
+                        )}
                       </div>
-                    </div>
+
+                      <div className="recommendation-feature-content">
+                        <div>
+                          <p className="eyebrow">
+                            {show.network || show.language || "TVmaze"}
+                          </p>
+                          <h3>{show.title}</h3>
+                          <p>{show.description}</p>
+                        </div>
+
+                        <div className="meta-row">
+                          {(show.genres || []).slice(0, 3).map((genre) => (
+                            <span key={genre}>{genre}</span>
+                          ))}
+                          <span>{show.status}</span>
+                          {show.premiered && <span>{show.premiered}</span>}
+                        </div>
+
+                        <div className="compact-rating">
+                          <span>{renderStars(show.rating)}</span>
+                          <strong>{show.rating}/5</strong>
+                        </div>
+
+                        <button
+                          type="button"
+                          className="submit-button"
+                          onClick={() => {
+                            setDiscoverQuery(show.title);
+                            setActivePage("discover");
+                          }}
+                        >
+                          Open in Discover
+                        </button>
+                      </div>
+                    </article>
                   ))}
                 </div>
-
-                <p className="recommendations-note">Sample series</p>
-              </div>
+              )}
             </section>
 
             <section className="stats-grid" aria-label="Series statistics">
               <StatCard label="Total Series" value={stats.total} />
               <StatCard label="Favorites" value={stats.favorites} />
               <StatCard label="Completed" value={stats.completed} />
-              <StatCard label="Total Episodes" value={stats.totalEpisodes} />
+              <StatCard label="Rated episodes" value={stats.totalEpisodes} />
               <StatCard label="Watched Episodes" value={stats.watchedEpisodes} />
               <StatCard label="Average Rating" value={`${stats.average}/5`} />
             </section>
@@ -2059,10 +2145,25 @@ export default function App() {
                             {(item.genres || []).map((genre) => (
                               <span key={genre}>{genre}</span>
                             ))}
-                            <span>{item.status}</span>
                             <span>{item.seasons} seasons</span>
                             <span>{item.ratedEpisodesCount || 0} rated episodes</span>
                           </div>
+
+                          <label>
+                            Status
+                            <select
+                              value={item.status}
+                              onChange={(event) =>
+                                handleLibraryStatusChange(item, event.target.value)
+                              }
+                            >
+                              {STATUS_OPTIONS.map((status) => (
+                                <option key={status} value={status}>
+                                  {status}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
 
                           <div className="compact-rating">
                             <span>
@@ -2482,7 +2583,6 @@ export default function App() {
                 {(selectedSeries.genres || []).map((genre) => (
                   <span key={genre}>{genre}</span>
                 ))}
-                <span>{selectedSeries.status}</span>
                 <span>{selectedSeries.seasons} seasons</span>
                 <span>
                   {selectedSeries.tvmazeId
@@ -2492,6 +2592,22 @@ export default function App() {
                     : `${selectedSeries.ratedEpisodesCount || 0} rated episodes`}
                 </span>
               </div>
+
+              <label>
+                Status
+                <select
+                  value={selectedSeries.status}
+                  onChange={(event) =>
+                    handleLibraryStatusChange(selectedSeries, event.target.value)
+                  }
+                >
+                  {STATUS_OPTIONS.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
               <button
                 type="button"
