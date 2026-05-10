@@ -1189,6 +1189,89 @@ textarea:focus {
   font-weight: 700;
 }
 
+.discover-section {
+  background: linear-gradient(145deg, var(--card), rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--border);
+  border-radius: 32px;
+  box-shadow: var(--shadow);
+  padding: 26px;
+  margin-bottom: 24px;
+}
+
+.discover-search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  margin-top: 18px;
+  align-items: end;
+}
+
+.discover-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 22px;
+}
+
+.discover-card {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 18px;
+  background: var(--card-solid);
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  padding: 18px;
+  box-shadow: var(--shadow);
+  transition: transform 0.2s ease, border 0.2s ease;
+}
+
+.discover-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(255, 181, 71, 0.55);
+}
+
+.discover-poster {
+  min-height: 220px;
+  border-radius: 22px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top, rgba(255, 181, 71, 0.25), transparent),
+    var(--bg);
+  border: 1px solid var(--border);
+  display: grid;
+  place-items: center;
+}
+
+.discover-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.discover-poster span {
+  font-size: 3.5rem;
+}
+
+.discover-content {
+  min-width: 0;
+}
+
+.discover-content h3 {
+  font-size: 1.45rem;
+  margin-bottom: 8px;
+}
+
+.discover-content p {
+  color: var(--muted);
+  line-height: 1.55;
+  margin-bottom: 14px;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .insight-card {
   background: var(--card-solid);
   border: 1px solid var(--border);
@@ -1372,6 +1455,10 @@ textarea:focus {
     grid-template-columns: 1fr;
   }
 
+  .discover-grid {
+    grid-template-columns: 1fr;
+  }
+
   .insights-grid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -1430,6 +1517,18 @@ textarea:focus {
     max-height: 90vh;
     padding: 20px;
     border-radius: 24px;
+  }
+
+  .discover-search {
+    grid-template-columns: 1fr;
+  }
+
+  .discover-card {
+    grid-template-columns: 1fr;
+  }
+
+  .discover-poster {
+    min-height: 260px;
   }
 
   .modal-title-row {
@@ -1510,6 +1609,15 @@ textarea:focus {
   .auth-section {
     border-radius: 24px;
     padding: 20px;
+  }
+
+  .discover-section {
+    border-radius: 24px;
+    padding: 20px;
+  }
+
+  .discover-poster {
+    min-height: 210px;
   }
 
   .api-actions {

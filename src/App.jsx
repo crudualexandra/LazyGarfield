@@ -336,6 +336,11 @@ export default function App() {
     password: ""
   });
 
+  const [discoverQuery, setDiscoverQuery] = useState("");
+  const [discoverResults, setDiscoverResults] = useState([]);
+  const [discoverMessage, setDiscoverMessage] = useState("");
+  const [isDiscoverLoading, setIsDiscoverLoading] = useState(false);
+
   async function getApiToken() {
     try {
       setIsApiLoading(true);
@@ -485,7 +490,7 @@ export default function App() {
       setApiMode(true);
       setAuthMessage(`Logged in as ${data.user.name}`);
       setApiStatus(`Authenticated as ${data.user.role}.`);
-      setActivePage("dashboard");
+      setActivePage("discover");
     } catch (error) {
       setAuthMessage(error.message);
     }
@@ -521,7 +526,7 @@ export default function App() {
       setApiMode(true);
       setAuthMessage(`Account created for ${data.user.name}`);
       setApiStatus(`Authenticated as ${data.user.role}.`);
-      setActivePage("dashboard");
+      setActivePage("discover");
     } catch (error) {
       setAuthMessage(error.message);
     }
@@ -535,6 +540,51 @@ export default function App() {
     setAuthMessage("Logged out successfully.");
     setApiStatus("Logged out. Local mode is available as fallback.");
     setActivePage("auth");
+  }
+
+  async function searchDiscoverShows(event) {
+    if (event) {
+      event.preventDefault();
+    }
+
+    const query = discoverQuery.trim();
+
+    if (!query) {
+      setDiscoverMessage("Enter a series title to search.");
+      return;
+    }
+
+    try {
+      setIsDiscoverLoading(true);
+      setDiscoverMessage("");
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/discover/search?q=${encodeURIComponent(query)}`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Search failed");
+      }
+
+      setDiscoverResults(data.data || []);
+      setDiscoverMessage(
+        `Found ${data.data?.length || 0} results for "${query}".`
+      );
+    } catch (error) {
+      setDiscoverMessage(error.message);
+    } finally {
+      setIsDiscoverLoading(false);
+    }
+  }
+
+  function openDiscoverDetails(tvmazeId) {
+    const show = discoverResults.find((item) => item.tvmazeId === tvmazeId);
+
+    if (show) {
+      alert(`${show.title}\n\n${show.description}`);
+    }
   }
 
   const [series, setSeries] = useState(() => {
@@ -576,7 +626,7 @@ export default function App() {
   const visiblePage = !isAuthenticated
     ? "auth"
     : !isAdmin && activePage === "add"
-      ? "dashboard"
+      ? "discover"
       : activePage;
 
   const [selectedSeriesId, setSelectedSeriesId] = useState(null);
@@ -1113,6 +1163,18 @@ export default function App() {
                 <>
                   <button
                     className={
+                      activePage === "discover"
+                        ? "sidebar-link active"
+                        : "sidebar-link"
+                    }
+                    onClick={() => setActivePage("discover")}
+                  >
+                    <span>🔎</span>
+                    Discover
+                  </button>
+
+                  <button
+                    className={
                       activePage === "dashboard"
                         ? "sidebar-link active"
                         : "sidebar-link"
@@ -1177,6 +1239,81 @@ export default function App() {
         </aside>
 
         <main className="page-content">
+        {visiblePage === "discover" && (
+          <section className="discover-section">
+            <div className="section-title">
+              <p className="eyebrow">Public Catalog</p>
+              <h2>Discover TV series</h2>
+              <p className="insights-description">
+                Search real TV series from TVmaze and later add them to your personal LazyGarfield library.
+              </p>
+            </div>
+
+            <form className="discover-search" onSubmit={searchDiscoverShows}>
+              <input
+                type="text"
+                value={discoverQuery}
+                onChange={(event) => setDiscoverQuery(event.target.value)}
+                placeholder="Search for Dark, Sherlock, The Crown..."
+              />
+
+              <button className="submit-button" type="submit" disabled={isDiscoverLoading}>
+                {isDiscoverLoading ? "Searching..." : "Search"}
+              </button>
+            </form>
+
+            {discoverMessage && <p className="api-message">{discoverMessage}</p>}
+
+            {discoverResults.length === 0 ? (
+              <div className="empty-state">
+                <div>🔎</div>
+                <h3>Search the public catalog</h3>
+                <p>Find series from TVmaze and choose what to save later.</p>
+              </div>
+            ) : (
+              <div className="discover-grid">
+                {discoverResults.map((show) => (
+                  <article className="discover-card" key={show.tvmazeId}>
+                    <div className="discover-poster">
+                      {show.poster && show.poster.startsWith("http") ? (
+                        <img src={show.poster} alt={show.title} />
+                      ) : (
+                        <span>{show.poster || "🎬"}</span>
+                      )}
+                    </div>
+
+                    <div className="discover-content">
+                      <h3>{show.title}</h3>
+                      <p>{show.description}</p>
+
+                      <div className="meta-row">
+                        {(show.genres || []).slice(0, 3).map((genre) => (
+                          <span key={genre}>{genre}</span>
+                        ))}
+                        <span>{show.status}</span>
+                        {show.network && <span>{show.network}</span>}
+                      </div>
+
+                      <div className="compact-rating">
+                        <span>{renderStars(show.rating)}</span>
+                        <strong>{show.rating}/5</strong>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="details-toggle-button"
+                        onClick={() => openDiscoverDetails(show.tvmazeId)}
+                      >
+                        View Public Details
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
         {visiblePage === "dashboard" && (
           <>
             <section className="hero-section">
