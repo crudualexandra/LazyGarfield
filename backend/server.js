@@ -797,6 +797,8 @@ app.post(
 				episodeTitle,
 				rating: Number(req.body?.rating || 3),
 				watched: Boolean(req.body?.watched),
+				comment:
+					req.body?.comment !== undefined ? req.body.comment : existingRating.comment,
 			};
 
 			db.prepare(
@@ -804,7 +806,8 @@ app.post(
 					UPDATE episode_ratings SET
 						episodeTitle = @episodeTitle,
 						rating = @rating,
-						watched = @watched
+						watched = @watched,
+						comment = @comment
 					WHERE id = @id AND userId = @userId
 				`
 			).run(serializeEpisodeRating(updatedRating));
@@ -821,6 +824,7 @@ app.post(
 			episode,
 			rating: Number(req.body?.rating || 3),
 			watched: Boolean(req.body?.watched),
+			comment: req.body?.comment || "",
 			createdAt: new Date().toISOString(),
 		};
 
@@ -835,6 +839,7 @@ app.post(
 					episode,
 					rating,
 					watched,
+					comment,
 					createdAt
 				) VALUES (
 					@id,
@@ -845,6 +850,7 @@ app.post(
 					@episode,
 					@rating,
 					@watched,
+					@comment,
 					@createdAt
 				)
 			`
@@ -883,6 +889,8 @@ app.put(
 			episode: Number(req.body?.episode ?? existingRating.episode),
 			rating: Number(req.body?.rating ?? existingRating.rating),
 			watched: Boolean(req.body?.watched ?? existingRating.watched),
+			comment:
+				req.body?.comment !== undefined ? req.body.comment : existingRating.comment,
 			createdAt: req.body?.createdAt ?? existingRating.createdAt,
 		};
 
@@ -894,6 +902,7 @@ app.put(
 					episode = @episode,
 					rating = @rating,
 					watched = @watched,
+					comment = @comment,
 					createdAt = @createdAt
 				WHERE id = @id AND userId = @userId
 			`

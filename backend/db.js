@@ -53,6 +53,7 @@ db.exec(`
     episode INTEGER NOT NULL,
     rating INTEGER NOT NULL,
     watched INTEGER NOT NULL,
+    comment TEXT NOT NULL DEFAULT '',
     createdAt TEXT NOT NULL,
     FOREIGN KEY(userId) REFERENCES users(id)
   );
@@ -69,6 +70,15 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_episode_ratings_userId_tvmazeId
     ON episode_ratings(userId, tvmazeId);
 `);
+
+const episodeRatingsColumns = db
+  .prepare("PRAGMA table_info(episode_ratings)")
+  .all()
+  .map((column) => column.name);
+
+if (!episodeRatingsColumns.includes("comment")) {
+  db.exec("ALTER TABLE episode_ratings ADD COLUMN comment TEXT NOT NULL DEFAULT ''");
+}
 
 // Temporary compatibility: keep the legacy `series` table around so the
 // existing `server.js` can keep working until the routes are redesigned
@@ -173,6 +183,7 @@ export function serializeEpisodeRating(item) {
     episode: Number(item.episode || 1),
     rating: Number(item.rating || 3),
     watched: item.watched ? 1 : 0,
+    comment: item.comment || "",
     createdAt: item.createdAt
   };
 }
@@ -191,6 +202,7 @@ export function deserializeEpisodeRating(row) {
     episode: Number(row.episode || 1),
     rating: Number(row.rating || 3),
     watched: Boolean(row.watched),
+    comment: row.comment || "",
     createdAt: row.createdAt
   };
 }
