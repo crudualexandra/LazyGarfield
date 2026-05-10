@@ -937,6 +937,117 @@ app.delete(
 	}
 );
 
+app.get("/api/reviews", (req, res) => {
+	const limitRaw = Number(req.query.limit);
+	const skipRaw = Number(req.query.skip);
+	const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.floor(limitRaw) : 20;
+	const skip = Number.isFinite(skipRaw) && skipRaw >= 0 ? Math.floor(skipRaw) : 0;
+
+	try {
+		const rows = db
+			.prepare(
+				`
+					SELECT
+						episode_ratings.id,
+						episode_ratings.userId,
+						users.name AS userName,
+						episode_ratings.tvmazeId,
+						episode_ratings.episodeTitle,
+						episode_ratings.season,
+						episode_ratings.episode,
+						episode_ratings.rating,
+						episode_ratings.watched,
+						episode_ratings.comment,
+						episode_ratings.createdAt
+					FROM episode_ratings
+					JOIN users ON users.id = episode_ratings.userId
+					WHERE TRIM(episode_ratings.comment) != ''
+					ORDER BY episode_ratings.createdAt DESC
+					LIMIT ? OFFSET ?
+				`
+			)
+			.all(limit, skip);
+		const countRow = db
+			.prepare(
+				`
+					SELECT COUNT(*) AS count
+					FROM episode_ratings
+					WHERE TRIM(comment) != ''
+				`
+			)
+			.get();
+
+		res.status(200).json({
+			total: countRow.count,
+			limit,
+			skip,
+			data: rows.map((row) => ({
+				...row,
+				watched: Boolean(row.watched),
+			})),
+		});
+	} catch {
+		res.status(500).json({ message: "Internal server error" });
+	}
+});
+
+app.get("/api/shows/:tvmazeId/reviews", (req, res) => {
+	const tvmazeId = Number(req.params.tvmazeId);
+	const limitRaw = Number(req.query.limit);
+	const skipRaw = Number(req.query.skip);
+	const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.floor(limitRaw) : 20;
+	const skip = Number.isFinite(skipRaw) && skipRaw >= 0 ? Math.floor(skipRaw) : 0;
+
+	try {
+		const rows = db
+			.prepare(
+				`
+					SELECT
+						episode_ratings.id,
+						episode_ratings.userId,
+						users.name AS userName,
+						episode_ratings.tvmazeId,
+						episode_ratings.episodeTitle,
+						episode_ratings.season,
+						episode_ratings.episode,
+						episode_ratings.rating,
+						episode_ratings.watched,
+						episode_ratings.comment,
+						episode_ratings.createdAt
+					FROM episode_ratings
+					JOIN users ON users.id = episode_ratings.userId
+					WHERE episode_ratings.tvmazeId = ?
+						AND TRIM(episode_ratings.comment) != ''
+					ORDER BY episode_ratings.createdAt DESC
+					LIMIT ? OFFSET ?
+				`
+			)
+			.all(tvmazeId, limit, skip);
+		const countRow = db
+			.prepare(
+				`
+					SELECT COUNT(*) AS count
+					FROM episode_ratings
+					WHERE tvmazeId = ? AND TRIM(comment) != ''
+				`
+			)
+			.get(tvmazeId);
+
+		res.status(200).json({
+			tvmazeId,
+			total: countRow.count,
+			limit,
+			skip,
+			data: rows.map((row) => ({
+				...row,
+				watched: Boolean(row.watched),
+			})),
+		});
+	} catch {
+		res.status(500).json({ message: "Internal server error" });
+	}
+});
+
 app.get("/api/discover/search", async (req, res) => {
 	const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
 
