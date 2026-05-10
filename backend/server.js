@@ -3,7 +3,8 @@ import cors from "cors";
 import jwt from "jsonwebtoken";
 import swaggerUi from "swagger-ui-express";
 import * as crypto from "node:crypto";
-import { db, serializeSeries, deserializeSeries } from "./db.js";
+import bcrypt from "bcryptjs";
+import { db, deserializeUser, serializeSeries, deserializeSeries } from "./db.js";
 
 const app = express();
 const PORT = 4000;
@@ -46,6 +47,18 @@ function requirePermission(permission) {
 
 		next();
 	};
+}
+
+function createAuthToken(user) {
+	return jwt.sign(
+		{
+			userId: user.id,
+			email: user.email,
+			role: user.role,
+		},
+		JWT_SECRET,
+		{ expiresIn: "1m" }
+	);
 }
 
 const swaggerDocument = {
@@ -471,6 +484,163 @@ app.post("/token", (req, res) => {
 		expiresIn: "1 minute",
 		role,
 		permissions,
+	});
+});
+
+app.post("/auth/register", async (req, res) => {
+	const nameRaw = req.body?.name;
+	const emailRaw = req.body?.email;
+	const password = req.body?.password;
+
+	const name = typeof nameRaw === "string" ? nameRaw.trim() : "";
+	const email = typeof emailRaw === "string" ? emailRaw.trim().toLowerCase() : "";
+
+	if (!name) {
+		return res.status(400).json({ message: "Name is required" });
+	}
+
+	if (!email) {
+		return res.status(400).json({ message: "Email is required" });
+	}
+
+	if (!password) {
+		return res.status(400).json({ message: "Password is required" });
+	}
+
+	if (String(password).length < 6) {
+		return res
+			.status(400)
+			.json({ message: "Password must be at least 6 characters" });
+	}
+
+	const existingRow = db
+		.prepare("SELECT * FROM users WHERE email = ?")
+		.get(email);
+
+	if (existingRow) {
+		return res
+			.status(409)
+			.json({ message: "User with this email already exists" });
+	}
+
+	const passwordHash = await bcrypt.hash(String(password), 10);
+	const createdAt = new Date().toISOString();
+
+	const user = {
+		id: crypto.randomUUID(),
+		name,
+		email,
+		passwordHash,
+		role: "USER",
+		createdAt,
+	};
+
+	db.prepare(
+		`
+			INSERT INTO users (
+				id,
+				name,
+				email,
+				passwordHash,
+				role,
+				createdAt
+			) VALUES (
+				@id,
+				@name,
+				@email,
+				@passwordHash,
+				@role,
+				@createdAt
+			)
+		`
+	).run(user);
+
+	const token = createAuthToken(user);
+
+	res.status(201).json({
+		token,
+		user: {
+			id: user.id,
+			name: user.name,
+			email: user.email,
+			role: user.role,
+			createdAt: user.createdAt,
+		},
+	});
+});
+
+app.post("/auth/login", async (req, res) => {
+	const emailRaw = req.body?.email;
+	const password = req.body?.password;
+
+	const email = typeof emailRaw === "string" ? emailRaw.trim().toLowerCase() : "";
+
+	if (!email) {
+		return res.status(400).json({ message: "Email is required" });
+	}
+
+	if (!password) {
+		return res.status(400).json({ message: "Password is required" });
+	}
+
+	const row = db.prepare("SELECT * FROM users WHERE email = ?").get(email);
+	const user = deserializeUser(row);
+
+	if (!user) {
+		return res.status(401).json({ message: "Invalid email or password" });
+	}
+
+	let passwordMatches = false;
+	const passwordValue = String(password);
+
+	if (user.passwordHash === "admin-demo-password") {
+		passwordMatches = passwordValue === "admin123";
+	} else if (user.passwordHash === "user-demo-password") {
+		passwordMatches = passwordValue === "user123";
+	} else {
+		passwordMatches = await bcrypt.compare(passwordValue, user.passwordHash);
+	}
+
+	if (!passwordMatches) {
+		return res.status(401).json({ message: "Invalid email or password" });
+	}
+
+	const token = createAuthToken(user);
+
+	res.status(200).json({
+		token,
+		user: {
+			id: user.id,
+			name: user.name,
+			email: user.email,
+			role: user.role,
+			createdAt: user.createdAt,
+		},
+	});
+});
+
+app.get("/auth/me", authenticateToken, (req, res) => {
+	const userId = req.user?.userId;
+
+	if (!userId) {
+		return res.status(401).json({ message: "Invalid or expired token" });
+	}
+
+	const row = db.prepare("SELECT * FROM users WHERE id = ?").get(userId);
+	const user = deserializeUser(row);
+
+	if (!user) {
+		return res.status(404).json({ message: "User not found" });
+	}
+
+	res.status(200).json({
+		user: {
+			id: user.id,
+			name: user.name,
+			email: user.email,
+			role: user.role,
+			createdAt: user.createdAt,
+		},
 	});
 });
 
