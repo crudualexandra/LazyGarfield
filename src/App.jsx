@@ -7,7 +7,9 @@ const STORAGE_KEYS = {
   theme: "lazygarfield_theme",
   filters: "lazygarfield_filters",
   page: "lazygarfield_page",
-  apiMode: "lazygarfield_api_mode"
+  apiMode: "lazygarfield_api_mode",
+  authToken: "lazygarfield_auth_token",
+  currentUser: "lazygarfield_current_user"
 };
 
 const API_BASE_URL = "http://localhost:4000";
@@ -311,6 +313,9 @@ function normalizeSeriesItem(item) {
     rating: clampRating(item.rating),
     seasons: Number(item.seasons || 1),
     isFavorite: Boolean(item.isFavorite),
+    ratedEpisodesCount: Number(
+      item.ratedEpisodesCount || item.episodeRatingsCount || 0
+    ),
     description: item.description || "No description added yet.",
     poster: item.poster || "🎬",
     createdAt: item.createdAt || new Date().toISOString()
@@ -326,8 +331,14 @@ export default function App() {
   });
   const [hasAutoLoadedApi, setHasAutoLoadedApi] = useState(false);
 
-  const [authToken, setAuthToken] = useState("");
-  const [currentUser, setCurrentUser] = useState(null);
+  const [authToken, setAuthToken] = useState(() => {
+    return localStorage.getItem(STORAGE_KEYS.authToken) || "";
+  });
+  const [currentUser, setCurrentUser] = useState(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.currentUser);
+
+    return saved ? JSON.parse(saved) : null;
+  });
   const [authMode, setAuthMode] = useState("login");
   const [authMessage, setAuthMessage] = useState("");
   const [authForm, setAuthForm] = useState({
@@ -343,6 +354,9 @@ export default function App() {
   const [libraryMessage, setLibraryMessage] = useState("");
   const [myLibraryMessage, setMyLibraryMessage] = useState("");
   const [isMyLibraryLoading, setIsMyLibraryLoading] = useState(false);
+  const [publicReviews, setPublicReviews] = useState([]);
+  const [publicReviewsMessage, setPublicReviewsMessage] = useState("");
+  const [isPublicReviewsLoading, setIsPublicReviewsLoading] = useState(false);
 
   async function getApiToken() {
     try {
@@ -536,6 +550,8 @@ export default function App() {
   }
 
   function logoutUser() {
+    localStorage.removeItem(STORAGE_KEYS.authToken);
+    localStorage.removeItem(STORAGE_KEYS.currentUser);
     setAuthToken("");
     setApiToken("");
     setCurrentUser(null);
@@ -564,6 +580,28 @@ export default function App() {
       setMyLibraryMessage(error.message);
     } finally {
       setIsMyLibraryLoading(false);
+    }
+  }
+
+  async function loadPublicReviews() {
+    try {
+      setIsPublicReviewsLoading(true);
+
+      const response = await fetch(`${API_BASE_URL}/api/reviews?limit=10&skip=0`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Could not load public reviews");
+      }
+
+      setPublicReviews(data.data || []);
+      setPublicReviewsMessage(
+        `Loaded ${data.data?.length || 0} community reviews.`
+      );
+    } catch (error) {
+      setPublicReviewsMessage(error.message);
+    } finally {
+      setIsPublicReviewsLoading(false);
     }
   }
 
@@ -612,6 +650,28 @@ export default function App() {
     }
   }
 
+  async function getSeasonCountFromTvmaze(tvmazeId) {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/discover/shows/${tvmazeId}/episodes`
+      );
+      const data = await response.json();
+
+      if (!response.ok) {
+        return 1;
+      }
+
+      const episodes = data.data || [];
+      const maxSeason = episodes.reduce((max, episode) => {
+        return Math.max(max, Number(episode.season || 1));
+      }, 1);
+
+      return maxSeason || 1;
+    } catch {
+      return 1;
+    }
+  }
+
   async function addDiscoveredShowToLibrary(show) {
     if (!isAuthenticated) {
       setLibraryMessage("Please login before adding series to your library.");
@@ -621,6 +681,7 @@ export default function App() {
 
     try {
       setLibraryMessage("");
+      const seasonCount = await getSeasonCountFromTvmaze(show.tvmazeId);
 
       await apiRequest("/api/my-library", {
         method: "POST",
@@ -630,7 +691,7 @@ export default function App() {
           genres: show.genres || [],
           status: "Plan to Watch",
           rating: show.rating || 3,
-          seasons: show.seasons || 1,
+          seasons: seasonCount,
           description: show.description || "No description available.",
           poster: show.poster || "🎬",
           isFavorite: false
@@ -690,6 +751,75 @@ export default function App() {
   const [modalEpisodeRatings, setModalEpisodeRatings] = useState([]);
   const [episodeMessage, setEpisodeMessage] = useState("");
   const [isEpisodesLoading, setIsEpisodesLoading] = useState(false);
+  const [episodeCommentDrafts, setEpisodeCommentDrafts] = useState({});
+
+  useEffect(() => {
+    if (authToken) {
+      localStorage.setItem(STORAGE_KEYS.authToken, authToken);
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.authToken);
+    }
+  }, [authToken]);
+
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem(STORAGE_KEYS.currentUser, JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.currentUser);
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (authToken && !apiToken) {
+      setApiToken(authToken);
+      setApiMode(true);
+    }
+  }, [authToken, apiToken]);
+
+  useEffect(() => {
+    if (!authToken || !currentUser) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function validateSession() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/auth/me`, {
+          headers: {
+            Authorization: `Bearer ${authToken}`
+          }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || "Session expired");
+        }
+
+        if (!cancelled) {
+          setCurrentUser(data.user);
+          setApiToken(authToken);
+          setApiMode(true);
+        }
+      } catch {
+        if (!cancelled) {
+          setAuthToken("");
+          setApiToken("");
+          setCurrentUser(null);
+          setApiMode(false);
+          setActivePage("auth");
+          setAuthMessage("Session expired. Please login again.");
+        }
+      }
+    }
+
+    validateSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authToken]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.apiMode, String(apiMode));
@@ -698,6 +828,12 @@ export default function App() {
   useEffect(() => {
     if (visiblePage === "library" && authToken && currentUser) {
       loadMyLibrary();
+    }
+  }, [visiblePage, authToken, currentUser]);
+
+  useEffect(() => {
+    if (visiblePage === "insights" && authToken && currentUser) {
+      loadPublicReviews();
     }
   }, [visiblePage, authToken, currentUser]);
 
@@ -928,6 +1064,39 @@ export default function App() {
     );
   }
 
+  function updateSelectedSeriesRatedCount(delta) {
+    if (!selectedSeriesId) {
+      return;
+    }
+
+    setSeries((current) =>
+      current.map((item) =>
+        item.id === selectedSeriesId
+          ? {
+              ...item,
+              ratedEpisodesCount: Math.max(
+                0,
+                Number(item.ratedEpisodesCount || 0) + delta
+              )
+            }
+          : item
+      )
+    );
+  }
+
+  function getEpisodeKey(episode) {
+    return `${episode.season}-${episode.episode}`;
+  }
+
+  function updateEpisodeCommentDraft(episode, value) {
+    const key = getEpisodeKey(episode);
+
+    setEpisodeCommentDrafts((current) => ({
+      ...current,
+      [key]: value
+    }));
+  }
+
   async function loadEpisodeData(seriesItem) {
     if (!seriesItem?.tvmazeId) {
       return;
@@ -953,6 +1122,11 @@ export default function App() {
 
       setModalEpisodes(episodesData.data || []);
       setModalEpisodeRatings(ratingsData.data || []);
+      const drafts = {};
+      (ratingsData.data || []).forEach((rating) => {
+        drafts[`${rating.season}-${rating.episode}`] = rating.comment || "";
+      });
+      setEpisodeCommentDrafts(drafts);
     } catch (error) {
       setEpisodeMessage(error.message);
     } finally {
@@ -965,6 +1139,10 @@ export default function App() {
       return;
     }
 
+    const key = getEpisodeKey(episode);
+    const comment = episodeCommentDrafts[key] || "";
+    const existingRating = getEpisodeSavedRating(episode.season, episode.episode);
+
     try {
       setEpisodeMessage("");
 
@@ -976,7 +1154,8 @@ export default function App() {
           season: episode.season,
           episode: episode.episode,
           rating: clampRating(ratingValue),
-          watched: true
+          watched: true,
+          comment
         })
       });
 
@@ -999,6 +1178,10 @@ export default function App() {
         return next;
       });
 
+      if (!existingRating && savedRating) {
+        updateSelectedSeriesRatedCount(1);
+      }
+
       setEpisodeMessage(
         `Rated S${episode.season}E${episode.episode} ${clampRating(ratingValue)}/5.`
       );
@@ -1012,7 +1195,9 @@ export default function App() {
       return;
     }
 
+    const key = getEpisodeKey(episode);
     const existingRating = getEpisodeSavedRating(episode.season, episode.episode);
+    const comment = episodeCommentDrafts[key] || existingRating?.comment || "";
 
     try {
       setEpisodeMessage("");
@@ -1021,7 +1206,8 @@ export default function App() {
         ? await apiRequest(`/api/episode-ratings/${existingRating.id}`, {
             method: "PUT",
             body: JSON.stringify({
-              watched: !existingRating.watched
+              watched: !existingRating.watched,
+              comment
             })
           })
         : await apiRequest("/api/episode-ratings", {
@@ -1032,7 +1218,8 @@ export default function App() {
               season: episode.season,
               episode: episode.episode,
               rating: 3,
-              watched: true
+              watched: true,
+              comment
             })
           });
 
@@ -1055,6 +1242,10 @@ export default function App() {
         return next;
       });
 
+      if (!existingRating) {
+        updateSelectedSeriesRatedCount(1);
+      }
+
       setEpisodeMessage(
         `${savedRating.watched ? "Marked watched" : "Marked unwatched"} S${episode.season}E${episode.episode}.`
       );
@@ -1071,10 +1262,86 @@ export default function App() {
         method: "DELETE"
       });
 
+      updateSelectedSeriesRatedCount(-1);
+
       setModalEpisodeRatings((current) =>
         current.filter((item) => item.id !== ratingId)
       );
       setEpisodeMessage("Episode rating deleted.");
+    } catch (error) {
+      setEpisodeMessage(error.message);
+    }
+  }
+
+  async function saveEpisodeComment(episode) {
+    if (!selectedSeries?.tvmazeId) {
+      return;
+    }
+
+    const existingRating = getEpisodeSavedRating(episode.season, episode.episode);
+    const key = getEpisodeKey(episode);
+    const comment = episodeCommentDrafts[key] || "";
+
+    try {
+      setEpisodeMessage("");
+
+      const savedRating = existingRating
+        ? await apiRequest(`/api/episode-ratings/${existingRating.id}`, {
+            method: "PUT",
+            body: JSON.stringify({
+              episodeTitle: existingRating.episodeTitle || episode.title,
+              season: existingRating.season,
+              episode: existingRating.episode,
+              rating: existingRating.rating || 3,
+              watched: Boolean(existingRating.watched),
+              comment
+            })
+          })
+        : await apiRequest("/api/episode-ratings", {
+            method: "POST",
+            body: JSON.stringify({
+              tvmazeId: selectedSeries.tvmazeId,
+              episodeTitle: episode.title,
+              season: episode.season,
+              episode: episode.episode,
+              rating: 3,
+              watched: false,
+              comment
+            })
+          });
+
+      setModalEpisodeRatings((current) => {
+        const next = [...current];
+        const byIdIndex = next.findIndex((item) => item.id === savedRating.id);
+        const byEpisodeIndex = next.findIndex(
+          (item) =>
+            item.season === savedRating.season &&
+            item.episode === savedRating.episode
+        );
+
+        const targetIndex = byIdIndex !== -1 ? byIdIndex : byEpisodeIndex;
+
+        if (targetIndex !== -1) {
+          next[targetIndex] = savedRating;
+          return next;
+        }
+
+        next.push(savedRating);
+        return next;
+      });
+
+      if (!existingRating) {
+        updateSelectedSeriesRatedCount(1);
+      }
+
+      setEpisodeCommentDrafts((current) => ({
+        ...current,
+        [key]: savedRating.comment || ""
+      }));
+
+      setEpisodeMessage(
+        `Comment saved for S${episode.season}E${episode.episode}.`
+      );
     } catch (error) {
       setEpisodeMessage(error.message);
     }
@@ -1094,6 +1361,7 @@ export default function App() {
     setModalEpisodes([]);
     setModalEpisodeRatings([]);
     setEpisodeMessage("");
+    setEpisodeCommentDrafts({});
   }
 
   const selectedSeries = series.find((item) => item.id === selectedSeriesId);
@@ -1793,7 +2061,7 @@ export default function App() {
                             ))}
                             <span>{item.status}</span>
                             <span>{item.seasons} seasons</span>
-                            <span>{item.episodes?.length || 0} episodes</span>
+                            <span>{item.ratedEpisodesCount || 0} rated episodes</span>
                           </div>
 
                           <div className="compact-rating">
@@ -1999,49 +2267,60 @@ export default function App() {
               </div>
             </div>
 
-            <section className="api-panel">
-              <div className="section-title">
-                <p className="eyebrow">Backend API</p>
-                <h2>Lab 7 Full Integration</h2>
-                <p className="insights-description">
-                  LazyGarfield can connect to the protected Express API and load the series library using JWT authorization.
-                </p>
-              </div>
+            <section className="reviews-panel">
+              <div className="section-title row-title">
+                <div>
+                  <p className="eyebrow">Community Reviews</p>
+                  <h2>Latest episode notes</h2>
+                  <p className="insights-description">
+                    Public episode comments written by LazyGarfield users.
+                  </p>
+                </div>
 
-              <div className="api-actions">
                 <button
-                  className="submit-button"
                   type="button"
-                  onClick={connectToApi}
-                  disabled={isApiLoading}
-                >
-                  {isApiLoading ? "Connecting..." : "Connect to Backend API"}
-                </button>
-
-                <button
                   className="details-toggle-button"
-                  type="button"
-                  onClick={loadSeriesFromApi}
-                  disabled={isApiLoading || !apiMode}
+                  onClick={loadPublicReviews}
+                  disabled={isPublicReviewsLoading}
                 >
-                  Reload Series from API
-                </button>
-
-                <button
-                  className="details-toggle-button"
-                  type="button"
-                  onClick={disconnectFromApi}
-                >
-                  Switch to Local Mode
+                  {isPublicReviewsLoading ? "Loading..." : "Reload Reviews"}
                 </button>
               </div>
 
-              {apiStatus && <p className="api-message">{apiStatus}</p>}
+              {publicReviewsMessage && (
+                <p className="api-message">{publicReviewsMessage}</p>
+              )}
 
-              {apiMode && (
-                <p className="api-message">
-                  API mode is active. Series data is loaded from the backend.
-                </p>
+              {publicReviews.length === 0 ? (
+                <div className="empty-state">
+                  <div>💬</div>
+                  <h3>No public reviews yet</h3>
+                  <p>Write an episode comment in your library to make it appear here.</p>
+                </div>
+              ) : (
+                <div className="reviews-list">
+                  {publicReviews.map((review) => (
+                    <article className="review-card" key={review.id}>
+                      <div className="review-card-top">
+                        <div>
+                          <h3>{review.episodeTitle}</h3>
+                          <p>
+                            S{review.season} · E{review.episode} · by {review.userName}
+                          </p>
+                        </div>
+
+                        <strong>{renderStars(review.rating)}</strong>
+                      </div>
+
+                      <p className="review-comment">{review.comment}</p>
+
+                      <div className="review-meta">
+                        <span>{review.watched ? "Watched" : "Not watched"}</span>
+                        <span>TVmaze #{review.tvmazeId}</span>
+                      </div>
+                    </article>
+                  ))}
+                </div>
               )}
             </section>
           </section>
@@ -2205,7 +2484,13 @@ export default function App() {
                 ))}
                 <span>{selectedSeries.status}</span>
                 <span>{selectedSeries.seasons} seasons</span>
-                <span>{selectedSeries.episodes?.length || 0} episodes</span>
+                <span>
+                  {selectedSeries.tvmazeId
+                    ? isEpisodesLoading
+                      ? "Loading episodes..."
+                      : `${modalEpisodes.length || 0} TVmaze episodes`
+                    : `${selectedSeries.ratedEpisodesCount || 0} rated episodes`}
+                </span>
               </div>
 
               <button
@@ -2244,7 +2529,7 @@ export default function App() {
               <div className="episodes-box modal-episodes-box">
                 <div className="episodes-header">
                   <h4>Episodes</h4>
-                  <span>{modalEpisodes.length || 0} episodes</span>
+                  <span>{modalEpisodes.length || 0} TVmaze episodes</span>
                 </div>
 
                 {isEpisodesLoading ? (
@@ -2267,49 +2552,74 @@ export default function App() {
 
                           return (
                             <div className="episode-item" key={episode.tvmazeEpisodeId}>
-                              <div>
-                                <strong>{episode.title}</strong>
-                                <span>
-                                  S{episode.season} · E{episode.episode}
-                                  {episode.airdate ? ` · ${episode.airdate}` : ""}
-                                </span>
-                              </div>
+                              <div className="episode-main-row">
+                                <div>
+                                  <strong>{episode.title}</strong>
+                                  <span>
+                                    S{episode.season} · E{episode.episode}
+                                    {episode.airdate ? ` · ${episode.airdate}` : ""}
+                                  </span>
+                                </div>
 
-                              <div className="episode-actions">
-                                <button
-                                  type="button"
-                                  className={`watched-button ${
-                                    savedRating?.watched ? "active" : ""
-                                  }`}
-                                  onClick={() => toggleTvmazeEpisodeWatched(episode)}
-                                >
-                                  {savedRating?.watched ? "Watched" : "Mark watched"}
-                                </button>
-
-                                <select
-                                  value={savedRating?.rating || 3}
-                                  onChange={(event) =>
-                                    rateTvmazeEpisode(episode, event.target.value)
-                                  }
-                                >
-                                  {[1, 2, 3, 4, 5].map((rating) => (
-                                    <option key={rating} value={rating}>
-                                      {rating}/5
-                                    </option>
-                                  ))}
-                                </select>
-
-                                {savedRating && (
+                                <div className="episode-actions">
                                   <button
                                     type="button"
-                                    className="mini-delete-button"
-                                    onClick={() =>
-                                      deleteTvmazeEpisodeRating(savedRating.id)
+                                    className={`watched-button ${
+                                      savedRating?.watched ? "active" : ""
+                                    }`}
+                                    onClick={() => toggleTvmazeEpisodeWatched(episode)}
+                                  >
+                                    {savedRating?.watched ? "Watched" : "Mark watched"}
+                                  </button>
+
+                                  <select
+                                    value={savedRating?.rating || 3}
+                                    onChange={(event) =>
+                                      rateTvmazeEpisode(episode, event.target.value)
                                     }
                                   >
-                                    ×
-                                  </button>
-                                )}
+                                    {[1, 2, 3, 4, 5].map((rating) => (
+                                      <option key={rating} value={rating}>
+                                        {rating}/5
+                                      </option>
+                                    ))}
+                                  </select>
+
+                                  {savedRating && (
+                                    <button
+                                      type="button"
+                                      className="mini-delete-button"
+                                      onClick={() =>
+                                        deleteTvmazeEpisodeRating(savedRating.id)
+                                      }
+                                    >
+                                      ×
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="episode-comment-box">
+                                <textarea
+                                  rows="2"
+                                  value={
+                                    episodeCommentDrafts[getEpisodeKey(episode)] ??
+                                    savedRating?.comment ??
+                                    ""
+                                  }
+                                  onChange={(event) =>
+                                    updateEpisodeCommentDraft(episode, event.target.value)
+                                  }
+                                  placeholder="Write a short episode note or review..."
+                                />
+
+                                <button
+                                  type="button"
+                                  className="details-toggle-button"
+                                  onClick={() => saveEpisodeComment(episode)}
+                                >
+                                  Save Comment
+                                </button>
                               </div>
                             </div>
                           );
