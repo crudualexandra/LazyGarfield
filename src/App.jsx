@@ -340,6 +340,9 @@ export default function App() {
   const [discoverResults, setDiscoverResults] = useState([]);
   const [discoverMessage, setDiscoverMessage] = useState("");
   const [isDiscoverLoading, setIsDiscoverLoading] = useState(false);
+  const [libraryMessage, setLibraryMessage] = useState("");
+  const [myLibraryMessage, setMyLibraryMessage] = useState("");
+  const [isMyLibraryLoading, setIsMyLibraryLoading] = useState(false);
 
   async function getApiToken() {
     try {
@@ -542,6 +545,28 @@ export default function App() {
     setActivePage("auth");
   }
 
+  async function loadMyLibrary() {
+    if (!authToken || !currentUser) {
+      setActivePage("auth");
+      return;
+    }
+
+    try {
+      setIsMyLibraryLoading(true);
+
+      const data = await apiRequest("/api/my-library");
+
+      setSeries((data.data || []).map(normalizeSeriesItem));
+      setMyLibraryMessage(
+        `Loaded ${data.data?.length || 0} saved series from your library.`
+      );
+    } catch (error) {
+      setMyLibraryMessage(error.message);
+    } finally {
+      setIsMyLibraryLoading(false);
+    }
+  }
+
   async function searchDiscoverShows(event) {
     if (event) {
       event.preventDefault();
@@ -584,6 +609,37 @@ export default function App() {
 
     if (show) {
       alert(`${show.title}\n\n${show.description}`);
+    }
+  }
+
+  async function addDiscoveredShowToLibrary(show) {
+    if (!isAuthenticated) {
+      setLibraryMessage("Please login before adding series to your library.");
+      setActivePage("auth");
+      return;
+    }
+
+    try {
+      setLibraryMessage("");
+
+      await apiRequest("/api/my-library", {
+        method: "POST",
+        body: JSON.stringify({
+          tvmazeId: show.tvmazeId,
+          title: show.title,
+          genres: show.genres || [],
+          status: "Plan to Watch",
+          rating: show.rating || 3,
+          seasons: show.seasons || 1,
+          description: show.description || "No description available.",
+          poster: show.poster || "🎬",
+          isFavorite: false
+        })
+      });
+
+      setLibraryMessage(`${show.title} was added to your library.`);
+    } catch (error) {
+      setLibraryMessage(error.message);
     }
   }
 
@@ -630,10 +686,20 @@ export default function App() {
       : activePage;
 
   const [selectedSeriesId, setSelectedSeriesId] = useState(null);
+  const [modalEpisodes, setModalEpisodes] = useState([]);
+  const [modalEpisodeRatings, setModalEpisodeRatings] = useState([]);
+  const [episodeMessage, setEpisodeMessage] = useState("");
+  const [isEpisodesLoading, setIsEpisodesLoading] = useState(false);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.apiMode, String(apiMode));
   }, [apiMode]);
+
+  useEffect(() => {
+    if (visiblePage === "library" && authToken && currentUser) {
+      loadMyLibrary();
+    }
+  }, [visiblePage, authToken, currentUser]);
 
   useEffect(() => {
     if (!apiMode || hasAutoLoadedApi || authToken) {
@@ -716,6 +782,17 @@ export default function App() {
     updatedSeries,
     successMessage = "Series updated through backend API."
   ) {
+    if (isAuthenticated) {
+      const savedSeries = await apiRequest(`/api/my-library/${updatedSeries.id}`, {
+        method: "PUT",
+        body: JSON.stringify(updatedSeries)
+      });
+
+      setApiStatus(successMessage);
+
+      return normalizeSeriesItem(savedSeries);
+    }
+
     if (!apiMode) {
       return normalizeSeriesItem(updatedSeries);
     }
@@ -740,7 +817,13 @@ export default function App() {
 
   async function deleteSeries(id) {
     try {
-      if (apiMode) {
+      if (isAuthenticated) {
+        await apiRequest(`/api/my-library/${id}`, {
+          method: "DELETE"
+        });
+
+        setApiStatus("Series removed from your library.");
+      } else if (apiMode) {
         await apiRequest(`/api/series/${id}`, {
           method: "DELETE"
         });
@@ -837,18 +920,183 @@ export default function App() {
     }
   }
 
-  function openSeriesDetails(id) {
+  function getEpisodeSavedRating(season, episode) {
+    return (
+      modalEpisodeRatings.find(
+        (rating) => rating.season === season && rating.episode === episode
+      ) || null
+    );
+  }
+
+  async function loadEpisodeData(seriesItem) {
+    if (!seriesItem?.tvmazeId) {
+      return;
+    }
+
+    try {
+      setIsEpisodesLoading(true);
+      setEpisodeMessage("");
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/discover/shows/${seriesItem.tvmazeId}/episodes`
+      );
+
+      const episodesData = await response.json();
+
+      if (!response.ok) {
+        throw new Error(episodesData.message || "Could not load episodes");
+      }
+
+      const ratingsData = await apiRequest(
+        `/api/my-library/${seriesItem.tvmazeId}/episode-ratings`
+      );
+
+      setModalEpisodes(episodesData.data || []);
+      setModalEpisodeRatings(ratingsData.data || []);
+    } catch (error) {
+      setEpisodeMessage(error.message);
+    } finally {
+      setIsEpisodesLoading(false);
+    }
+  }
+
+  async function rateTvmazeEpisode(episode, ratingValue) {
+    if (!selectedSeries?.tvmazeId) {
+      return;
+    }
+
+    try {
+      setEpisodeMessage("");
+
+      const savedRating = await apiRequest("/api/episode-ratings", {
+        method: "POST",
+        body: JSON.stringify({
+          tvmazeId: selectedSeries.tvmazeId,
+          episodeTitle: episode.title,
+          season: episode.season,
+          episode: episode.episode,
+          rating: clampRating(ratingValue),
+          watched: true
+        })
+      });
+
+      setModalEpisodeRatings((current) => {
+        const next = [...current];
+        const byIdIndex = next.findIndex((item) => item.id === savedRating.id);
+        const byEpisodeIndex = next.findIndex(
+          (item) =>
+            item.season === savedRating.season && item.episode === savedRating.episode
+        );
+
+        const targetIndex = byIdIndex !== -1 ? byIdIndex : byEpisodeIndex;
+
+        if (targetIndex !== -1) {
+          next[targetIndex] = savedRating;
+          return next;
+        }
+
+        next.push(savedRating);
+        return next;
+      });
+
+      setEpisodeMessage(
+        `Rated S${episode.season}E${episode.episode} ${clampRating(ratingValue)}/5.`
+      );
+    } catch (error) {
+      setEpisodeMessage(error.message);
+    }
+  }
+
+  async function toggleTvmazeEpisodeWatched(episode) {
+    if (!selectedSeries?.tvmazeId) {
+      return;
+    }
+
+    const existingRating = getEpisodeSavedRating(episode.season, episode.episode);
+
+    try {
+      setEpisodeMessage("");
+
+      const savedRating = existingRating
+        ? await apiRequest(`/api/episode-ratings/${existingRating.id}`, {
+            method: "PUT",
+            body: JSON.stringify({
+              watched: !existingRating.watched
+            })
+          })
+        : await apiRequest("/api/episode-ratings", {
+            method: "POST",
+            body: JSON.stringify({
+              tvmazeId: selectedSeries.tvmazeId,
+              episodeTitle: episode.title,
+              season: episode.season,
+              episode: episode.episode,
+              rating: 3,
+              watched: true
+            })
+          });
+
+      setModalEpisodeRatings((current) => {
+        const next = [...current];
+        const byIdIndex = next.findIndex((item) => item.id === savedRating.id);
+        const byEpisodeIndex = next.findIndex(
+          (item) =>
+            item.season === savedRating.season && item.episode === savedRating.episode
+        );
+
+        const targetIndex = byIdIndex !== -1 ? byIdIndex : byEpisodeIndex;
+
+        if (targetIndex !== -1) {
+          next[targetIndex] = savedRating;
+          return next;
+        }
+
+        next.push(savedRating);
+        return next;
+      });
+
+      setEpisodeMessage(
+        `${savedRating.watched ? "Marked watched" : "Marked unwatched"} S${episode.season}E${episode.episode}.`
+      );
+    } catch (error) {
+      setEpisodeMessage(error.message);
+    }
+  }
+
+  async function deleteTvmazeEpisodeRating(ratingId) {
+    try {
+      setEpisodeMessage("");
+
+      await apiRequest(`/api/episode-ratings/${ratingId}`, {
+        method: "DELETE"
+      });
+
+      setModalEpisodeRatings((current) =>
+        current.filter((item) => item.id !== ratingId)
+      );
+      setEpisodeMessage("Episode rating deleted.");
+    } catch (error) {
+      setEpisodeMessage(error.message);
+    }
+  }
+
+  async function openSeriesDetails(id) {
+    const foundSeries = series.find((item) => item.id === id);
     setSelectedSeriesId(id);
+
+    if (foundSeries?.tvmazeId) {
+      await loadEpisodeData(foundSeries);
+    }
   }
 
   function closeSeriesDetails() {
     setSelectedSeriesId(null);
+    setModalEpisodes([]);
+    setModalEpisodeRatings([]);
+    setEpisodeMessage("");
   }
 
   const selectedSeries = series.find((item) => item.id === selectedSeriesId);
-  const selectedEpisodeForm = selectedSeries
-    ? getEpisodeForm(selectedSeries.id)
-    : emptyEpisodeForm;
 
   function updateForm(field, value) {
     setForm((current) => ({
@@ -1194,7 +1442,7 @@ export default function App() {
                     onClick={() => setActivePage("library")}
                   >
                     <span>📚</span>
-                    Library
+                    My Library
                   </button>
 
                   {isAdmin && (
@@ -1263,6 +1511,7 @@ export default function App() {
             </form>
 
             {discoverMessage && <p className="api-message">{discoverMessage}</p>}
+            {libraryMessage && <p className="api-message">{libraryMessage}</p>}
 
             {discoverResults.length === 0 ? (
               <div className="empty-state">
@@ -1305,6 +1554,14 @@ export default function App() {
                         onClick={() => openDiscoverDetails(show.tvmazeId)}
                       >
                         View Public Details
+                      </button>
+
+                      <button
+                        type="button"
+                        className="submit-button"
+                        onClick={() => addDiscoveredShowToLibrary(show)}
+                      >
+                        Add to My Library
                       </button>
                     </div>
                   </article>
@@ -1469,13 +1726,28 @@ export default function App() {
             <section className="library-section">
               <div className="section-title row-title">
                 <div>
-                  <p className="eyebrow">Series library</p>
-                  <h2>Your tracked shows</h2>
+                  <p className="eyebrow">Personal Library</p>
+                  <h2>My Library</h2>
+                  <p className="insights-description">
+                    These are the series saved to your personal LazyGarfield account.
+                  </p>
                 </div>
-                <p className="result-count">
-                  Showing {filteredSeries.length} of {series.length}
-                </p>
+                <div>
+                  <p className="result-count">
+                    Showing {filteredSeries.length} of {series.length}
+                  </p>
+                  <button
+                    type="button"
+                    className="details-toggle-button"
+                    onClick={loadMyLibrary}
+                    disabled={isMyLibraryLoading}
+                  >
+                    {isMyLibraryLoading ? "Loading..." : "Reload My Library"}
+                  </button>
+                </div>
               </div>
+
+              {myLibraryMessage && <p className="api-message">{myLibraryMessage}</p>}
 
               {filteredSeries.length === 0 ? (
                 <div className="empty-state">
@@ -1972,131 +2244,79 @@ export default function App() {
               <div className="episodes-box modal-episodes-box">
                 <div className="episodes-header">
                   <h4>Episodes</h4>
-                  <span>{selectedSeries.episodes?.length || 0} saved</span>
+                  <span>{modalEpisodes.length || 0} episodes</span>
                 </div>
 
-                <div className="episode-form">
-                  <input
-                    type="text"
-                    placeholder="Episode title"
-                    value={selectedEpisodeForm.title}
-                    onChange={(event) =>
-                      updateEpisodeForm(
-                        selectedSeries.id,
-                        "title",
-                        event.target.value
-                      )
-                    }
-                  />
-
-                  <input
-                    type="number"
-                    min="1"
-                    placeholder="S"
-                    value={selectedEpisodeForm.season}
-                    onChange={(event) =>
-                      updateEpisodeForm(
-                        selectedSeries.id,
-                        "season",
-                        event.target.value
-                      )
-                    }
-                  />
-
-                  <input
-                    type="number"
-                    min="1"
-                    placeholder="E"
-                    value={selectedEpisodeForm.episode}
-                    onChange={(event) =>
-                      updateEpisodeForm(
-                        selectedSeries.id,
-                        "episode",
-                        event.target.value
-                      )
-                    }
-                  />
-
-                  <select
-                    value={selectedEpisodeForm.rating}
-                    onChange={(event) =>
-                      updateEpisodeForm(
-                        selectedSeries.id,
-                        "rating",
-                        event.target.value
-                      )
-                    }
-                  >
-                    {[1, 2, 3, 4, 5].map((rating) => (
-                      <option key={rating} value={rating}>
-                        {rating}/5
-                      </option>
-                    ))}
-                  </select>
-
-                  <button
-                    type="button"
-                    className="add-episode-button"
-                    onClick={() => addEpisode(selectedSeries.id)}
-                  >
-                    Add Episode Rating
-                  </button>
-                </div>
-
-                {(selectedSeries.episodes || []).length === 0 ? (
-                  <p className="episode-empty">No episodes rated yet.</p>
+                {isEpisodesLoading ? (
+                  <p className="episode-empty">Loading episodes...</p>
                 ) : (
-                  <div className="episode-list">
-                    {(selectedSeries.episodes || []).map((episode) => (
-                      <div className="episode-item" key={episode.id}>
-                        <div>
-                          <strong>{episode.title}</strong>
-                          <span>
-                            S{episode.season} · E{episode.episode}
-                          </span>
-                        </div>
+                  <>
+                    {episodeMessage && <p className="api-message">{episodeMessage}</p>}
 
-                        <div className="episode-actions">
-                          <button
-                            type="button"
-                            className={`watched-button ${
-                              episode.watched ? "active" : ""
-                            }`}
-                            onClick={() =>
-                              toggleEpisodeWatched(selectedSeries.id, episode.id)
-                            }
-                          >
-                            {episode.watched ? "Watched" : "Unwatched"}
-                          </button>
+                    {modalEpisodes.length === 0 ? (
+                      <p className="episode-empty">
+                        No episodes found for this series.
+                      </p>
+                    ) : (
+                      <div className="episode-list">
+                        {modalEpisodes.map((episode) => {
+                          const savedRating = getEpisodeSavedRating(
+                            episode.season,
+                            episode.episode
+                          );
 
-                          <select
-                            value={episode.rating}
-                            onChange={(event) =>
-                              changeEpisodeRating(
-                                selectedSeries.id,
-                                episode.id,
-                                event.target.value
-                              )
-                            }
-                          >
-                            {[1, 2, 3, 4, 5].map((rating) => (
-                              <option key={rating} value={rating}>
-                                {rating}/5
-                              </option>
-                            ))}
-                          </select>
+                          return (
+                            <div className="episode-item" key={episode.tvmazeEpisodeId}>
+                              <div>
+                                <strong>{episode.title}</strong>
+                                <span>
+                                  S{episode.season} · E{episode.episode}
+                                  {episode.airdate ? ` · ${episode.airdate}` : ""}
+                                </span>
+                              </div>
 
-                          <button
-                            type="button"
-                            className="mini-delete-button"
-                            onClick={() => deleteEpisode(selectedSeries.id, episode.id)}
-                          >
-                            ×
-                          </button>
-                        </div>
+                              <div className="episode-actions">
+                                <button
+                                  type="button"
+                                  className={`watched-button ${
+                                    savedRating?.watched ? "active" : ""
+                                  }`}
+                                  onClick={() => toggleTvmazeEpisodeWatched(episode)}
+                                >
+                                  {savedRating?.watched ? "Watched" : "Mark watched"}
+                                </button>
+
+                                <select
+                                  value={savedRating?.rating || 3}
+                                  onChange={(event) =>
+                                    rateTvmazeEpisode(episode, event.target.value)
+                                  }
+                                >
+                                  {[1, 2, 3, 4, 5].map((rating) => (
+                                    <option key={rating} value={rating}>
+                                      {rating}/5
+                                    </option>
+                                  ))}
+                                </select>
+
+                                {savedRating && (
+                                  <button
+                                    type="button"
+                                    className="mini-delete-button"
+                                    onClick={() =>
+                                      deleteTvmazeEpisodeRating(savedRating.id)
+                                    }
+                                  >
+                                    ×
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
-                    ))}
-                  </div>
+                    )}
+                  </>
                 )}
               </div>
 
