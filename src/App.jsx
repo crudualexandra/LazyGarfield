@@ -485,7 +485,7 @@ export default function App() {
       setApiMode(true);
       setAuthMessage(`Logged in as ${data.user.name}`);
       setApiStatus(`Authenticated as ${data.user.role}.`);
-      setActivePage("discover");
+      setActivePage("dashboard");
     } catch (error) {
       setAuthMessage(error.message);
     }
@@ -521,7 +521,7 @@ export default function App() {
       setApiMode(true);
       setAuthMessage(`Account created for ${data.user.name}`);
       setApiStatus(`Authenticated as ${data.user.role}.`);
-      setActivePage("discover");
+      setActivePage("dashboard");
     } catch (error) {
       setAuthMessage(error.message);
     }
@@ -570,6 +570,14 @@ export default function App() {
   const [activePage, setActivePage] = useState(() => {
     return localStorage.getItem(STORAGE_KEYS.page) || "dashboard";
   });
+
+  const isAuthenticated = Boolean(authToken && currentUser);
+  const isAdmin = currentUser?.role === "ADMIN";
+  const visiblePage = !isAuthenticated
+    ? "auth"
+    : !isAdmin && activePage === "add"
+      ? "dashboard"
+      : activePage;
 
   const [selectedSeriesId, setSelectedSeriesId] = useState(null);
 
@@ -1091,65 +1099,85 @@ export default function App() {
             <p className="eyebrow">Menu</p>
 
             <nav className="sidebar-nav" aria-label="Sidebar navigation">
-              <button
-                className={
-                  activePage === "dashboard"
-                    ? "sidebar-link active"
-                    : "sidebar-link"
-                }
-                onClick={() => setActivePage("dashboard")}
-              >
-                <span>🏠</span>
-                Dashboard
-              </button>
+              {!isAuthenticated ? (
+                <button
+                  className={
+                    activePage === "auth" ? "sidebar-link active" : "sidebar-link"
+                  }
+                  onClick={() => setActivePage("auth")}
+                >
+                  <span>👤</span>
+                  Account
+                </button>
+              ) : (
+                <>
+                  <button
+                    className={
+                      activePage === "dashboard"
+                        ? "sidebar-link active"
+                        : "sidebar-link"
+                    }
+                    onClick={() => setActivePage("dashboard")}
+                  >
+                    <span>🏠</span>
+                    Dashboard
+                  </button>
 
-              <button
-                className={
-                  activePage === "library"
-                    ? "sidebar-link active"
-                    : "sidebar-link"
-                }
-                onClick={() => setActivePage("library")}
-              >
-                <span>📚</span>
-                Library
-              </button>
+                  <button
+                    className={
+                      activePage === "library"
+                        ? "sidebar-link active"
+                        : "sidebar-link"
+                    }
+                    onClick={() => setActivePage("library")}
+                  >
+                    <span>📚</span>
+                    Library
+                  </button>
 
-              <button
-                className={
-                  activePage === "add" ? "sidebar-link active" : "sidebar-link"
-                }
-                onClick={() => setActivePage("add")}
-              >
-                <span>➕</span>
-                Add Series
-              </button>
+                  {isAdmin && (
+                    <button
+                      className={
+                        activePage === "add"
+                          ? "sidebar-link active"
+                          : "sidebar-link"
+                      }
+                      onClick={() => setActivePage("add")}
+                    >
+                      <span>➕</span>
+                      Add Series
+                    </button>
+                  )}
 
-              <button
-                className={
-                  activePage === "insights"
-                    ? "sidebar-link active"
-                    : "sidebar-link"
-                }
-                onClick={() => setActivePage("insights")}
-              >
-                <span>📊</span>
-                Insights
-              </button>
+                  <button
+                    className={
+                      activePage === "insights"
+                        ? "sidebar-link active"
+                        : "sidebar-link"
+                    }
+                    onClick={() => setActivePage("insights")}
+                  >
+                    <span>📊</span>
+                    Insights
+                  </button>
 
-              <button
-                className={activePage === "auth" ? "sidebar-link active" : "sidebar-link"}
-                onClick={() => setActivePage("auth")}
-              >
-                <span>👤</span>
-                Account
-              </button>
+                  <button
+                    className={
+                      activePage === "auth" ? "sidebar-link active" : "sidebar-link"
+                    }
+                    onClick={() => setActivePage("auth")}
+                  >
+                    <span>👤</span>
+                    Account
+                  </button>
+                </>
+              )}
             </nav>
           </div>
         </aside>
 
         <main className="page-content">
-        {activePage === "dashboard" && (
+        {visiblePage === "dashboard" && (
           <>
             <section className="hero-section">
               <div className="hero-content">
@@ -1225,7 +1253,7 @@ export default function App() {
           </>
         )}
 
-        {activePage === "library" && (
+        {visiblePage === "library" && (
           <>
             <section className="filters-section" aria-label="Search and filters">
               <div className="section-title">
@@ -1383,7 +1411,7 @@ export default function App() {
           </>
         )}
 
-        {activePage === "add" && (
+        {visiblePage === "add" && (
           <>
             <div className="add-page-layout">
               <section id="add-series" className="form-section">
@@ -1513,7 +1541,7 @@ export default function App() {
           </>
         )}
 
-        {activePage === "insights" && (
+        {visiblePage === "insights" && (
           <section className="insights-section">
             <div className="section-title">
               <p className="eyebrow">Insights</p>
@@ -1610,7 +1638,7 @@ export default function App() {
           </section>
         )}
 
-        {activePage === "auth" && (
+        {visiblePage === "auth" && (
           <section className="auth-section">
             <div className="section-title">
               <p className="eyebrow">Account</p>
@@ -1624,6 +1652,12 @@ export default function App() {
               <p className="insights-description">
                 Login to save series to your personal LazyGarfield library.
               </p>
+
+              {!currentUser && (
+                <p className="insights-description">
+                  Please login or create an account to access your personal series library.
+                </p>
+              )}
             </div>
 
             {currentUser ? (
